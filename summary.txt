@@ -1,0 +1,1511 @@
+=========================================
+ PROJECT DIRECTORY STRUCTURE
+=========================================
+
+Root directory: D:\Game-Bot
+
+Game-Bot/
+    |-- Border.py
+    |-- EnemyCircular.py
+    |-- EnemyLinear.py
+    |-- Game.py
+    |-- Player.py
+    |-- README.md
+    |-- SafeZone.py
+    |-- Wall.py
+    |-- archive.txt
+    |-- functions.py
+    |-- main.py
+    |-- map.txt
+    |-- moves.txt
+    |-- settings.py
+|-- __pycache__/
+
+=========================================
+ PYTHON FILES CONTENT (.py)
+=========================================
+
+--- File: Border.py ---
+from functions import *
+
+class Border(pygame.sprite.Sprite):
+    """
+    Borders
+
+    Attributes
+    ----------
+    game : Game
+        The game that this border is in
+    groups : sprite group
+        All sprite groups this sprite belongs in
+    x : float
+        The x coordinate of the border
+    y : float
+        The y coordinate of the border
+    length : int
+        The length of the border
+    color : int list
+        The color of the wall in RGB
+    align : int
+        The alignment of the border, 0 = horizontal, 1 = vertical
+
+
+
+    Methods
+    -------
+    None
+
+    """
+    def __init__(self, game, x, y, length, width, color, align):
+        self.groups = game.all_sprites, game.borders
+        pygame.sprite.Sprite.__init__(self, self.groups)
+        self.game = game
+        self.image = pygame.Surface((length, length), pygame.SRCALPHA, 32)
+        self.rect = self.image.get_rect()
+        self.x = x
+        self.y = y
+        self.length = length
+        self.width = width
+        self.color = color
+        self.align = align
+        self.rect.x = x
+        self.rect.y = y
+
+    def draw(self):
+        """
+        Draws the borders (separate from sprites)
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
+        # If the border is horizontal
+        if self.align == 0:
+            pygame.draw.line(self.game.screen, self.color,
+                             [self.x - tile_size/2, self.y],
+                             [self.x + tile_size/2, self.y], self.width)
+        else:
+        # If the border is vertical
+            pygame.draw.line(self.game.screen, self.color,
+                             [self.x, self.y - tile_size/2],
+                             [self.x, self.y + tile_size/2], self.width)
+
+
+
+----------------------------------------
+
+--- File: EnemyCircular.py ---
+from Wall import *
+
+----------------------------------------
+
+--- File: EnemyLinear.py ---
+from EnemyCircular import *
+
+class EnemyLinear(pygame.sprite.Sprite):
+    """
+    Enemy that travels in a linear path
+
+    Attributes
+    ----------
+    game : Game
+        The game this enemy is in
+    groups : sprite group
+        All sprite groups this sprite belongs in
+    size : int
+        The diameter of the circular enemy
+    speed : float
+        The speed of the enemy
+    x : float
+        x coordinate of the centre of the circle
+    y : float
+        y coordinate of the centre of the circle
+    xint : float
+        The starting x coordinate
+    yint : float
+        The starting y coordinate
+    rect.x : float
+        The left bound coordinate of the circle
+    rect.y : float
+        The upper bound coordinate of the circle
+    criticals : float list list
+        A list of coordinates that the enemy will loop around
+    prevx : float
+        The x coordinate of the previous path point
+    prevy : float
+        The y coordinate of the previous path point
+    nextx : float
+        The x coordinate of the next path point
+    nexty : float
+        The y coordinate of the previous path point
+    step : int
+        The stage in the loop between critical points that the enemy is on
+    fill : int list
+        The color of the enemy
+    border : int list
+            The color of the enemy's border
+
+    Methods
+    -------
+    moves(None) -> None
+        Moves the enemy, following its critical track
+    update(None) -> None
+        Updates the enemy's position after it's moves have been made
+    reset(None) -> None
+        Moves the enemy back to its original starting position
+
+    """
+
+    def __init__(self, game, size, speed, x, y, criticals, fill, border):
+        """
+        Constructor to build a player
+
+        Parameters
+        ----------
+        game : Game
+            The game this enemy is in
+        size : int
+            The diameter of the circular enemy
+        speed : float
+            The speed of the enemy
+        x : float
+            Starting x coordinate
+        y : float
+            Starting y coordinate
+        criticals : float list list
+            A list of coordinates that the enemy will loop around
+        fill : int list
+            The color of the enemy
+        border : int list
+            The color of the enemy's border
+
+	    Returns
+        -------
+        None
+
+        """
+        # Sprites
+        self.groups = game.all_sprites, game.enemies
+        pygame.sprite.Sprite.__init__(self, self.groups)
+        self.game = game
+
+        # Enemy model
+        self.image = pygame.Surface((size, size), pygame.SRCALPHA, 32)
+        pygame.draw.circle(self.image, border, [int(size/2), int(size/2)], int(size/2))
+        pygame.draw.circle(self.image, fill, [int(size/2), int(size/2)], int(size/2) - 4)
+        self.rect = self.image.get_rect()
+        self.rect.x = x - size/2
+        self.rect.y = y - size/2
+
+        self.size = size
+        self.speed = speed
+        self.x = x
+        self.y = y
+        self.prevx = x
+        self.prevy = y
+        self.nextx = criticals[0][0]
+        self.nexty = criticals[0][1]
+        self.criticals = criticals
+        self.step = 0
+        self.fill = fill
+        self.border = border
+
+    def move(self):
+        """
+        Moves the enemy, following its critical track
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
+        if math.hypot(self.nextx - self.x, self.nexty - self.y) <= self.speed:
+            self.x = self.nextx
+            self.y = self.nexty
+            self.prevx = self.nextx
+            self.prevy = self.nexty
+            if self.step + 1 == len(self.criticals):
+                # Loop back to the beginning
+                self.step = 0
+            else:
+                self.step += 1
+            self.nextx = self.criticals[self.step][0]
+            self.nexty = self.criticals[self.step][1]
+        else:
+            hyp = math.hypot(self.nextx - self.prevx, self.nexty - self.prevy)
+            self.x += (self.nextx - self.prevx) * (self.speed / hyp)
+            self.y += (self.nexty - self.prevy) * (self.speed / hyp)
+
+    def update(self):
+        """
+        Updates the enemy's position after it's moves have been made
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
+        self.move()
+        self.rect.x = self.x - self.size/2
+        self.rect.y = self.y - self.size/2
+
+    def reset(self):
+        """
+        Moves the enemy back to its original starting position
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
+        self.x = self.criticals[0][0]
+        self.y = self.criticals[0][1]
+        self.rect.x = self.x - self.size/2
+        self.rect.y = self.y - self.size/2
+
+
+----------------------------------------
+
+--- File: Game.py ---
+from Player import *
+
+class Game:
+    """
+    The game and functions for setting up
+
+    Attributes
+    ----------
+    screen : surface
+        The Pygame window that displays this game
+    clock : Clock
+        Pygame clock
+    all_sprites : sprite group
+        A group for all sprites in this game
+    players : sprite group
+        All players in this game
+    player_list : Player list
+        List of all players
+    player_count : int
+        Fixed number of players spawned each generation
+    walls : sprite group
+        All walls in this game
+    zones : sprite group
+        All green spaces such as starting/ending and checkpoints in this game
+    borders : sprite group
+        All bordered lines in this game
+    enemies : sprite group
+        All enemies in this game
+    startx : float
+        The x coordinate of the starting tile for this game
+    starty : float
+        The y coordinate of the starting tile for this game
+    checkx : float
+        The x coordinate of the ending position of the most recent generation
+    checky : float
+        The y coordinate of the ending position of the most recent generation
+    level : int
+        The level of the game, used to find level data in map file
+    checkpoints_list : float list list
+        Stores the checkpoints' x and y coordinates
+    checkpoint : int
+        Index of currently targetted checkpoint in 'checkpoints_list'
+    generation : int
+        Current generation starting from 0
+    best_moves : str
+        A string of all the highest scored moves from each generation combined
+    best_moves_num : int
+        Length of 'best_moves'
+    rewind : bool
+        True if the game is rewinding its best moves from each generation. Occurs at the end of each generation
+
+    Methods
+    -------
+    new(level : int) -> None
+        Reads from the map file and creates all objects relating to the map
+    new_player(control : str, number : int) -> None
+        Creates multiple new players at a time
+    end_gen(None) -> None
+        Sorts the ended generation's moves, begins rewind phase and then makes the next generation
+    run(None) -> None
+        Primary loop to update and draw game contents
+    update(None) -> None
+        Updates all game sprites
+    draw_map(None) -> None
+        Draws map grid and squares
+    draw(None) -> None
+        Draws all game sprites
+    events(None) -> None
+        Listens for any events such as keypresses
+    quit(None) ->
+        Closes the Pygame window and quits the program
+
+    """
+
+    def __init__(self):
+        """
+        Constructor to build a new Game
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
+        pygame.init()
+        self.screen = pygame.display.set_mode((screen_width, screen_height))
+        pygame.display.set_caption(Title)
+
+        self.clock = pygame.time.Clock()
+        pygame.key.set_repeat(1, 1)
+
+        # Counter for generation rewinding
+        self.tick = 0
+
+    def new(self, level):
+        """
+        Reads from the map file and creates all objects relating to the map
+
+        Parameters
+        ----------
+        level : int
+            The level of this game with its specific map data in the map file
+
+        Returns
+        -------
+        None
+
+        """
+
+        # Sprite groups
+        self.all_sprites = pygame.sprite.Group()
+        self.players = pygame.sprite.Group()
+        self.player_list = []
+        self.playercount = 0
+        self.walls = pygame.sprite.Group()
+        self.zones = pygame.sprite.Group()
+        self.borders = pygame.sprite.Group()
+        self.enemies = pygame.sprite.Group()
+
+        self.startx = 166
+        self.starty = 326
+        self.checkx = self.startx
+        self.checky = self.starty
+
+        self.level = level
+
+        # Checkpoints for AI pathing
+        self.checkpoints_list = []
+        for i in range (0, 10):
+            self.checkpoints_list.append([])
+        #
+        self.checkpoint = 0
+
+        # Generations
+        self.generation = 0
+        self.best_moves = ''
+        self.best_moves_num = 0
+        self.rewind = False
+
+
+        # Map maker
+        with open(map_path, 'r') as file:
+            data = file.readlines()
+
+        # The line number of the level in the map file
+        index = data.index(">>>>>>>>>>>>>>>> Level " + str(self.level) + "\n")
+
+        # Walls ; Green Space ; borders
+        for y in range (index + 2, index + 33):
+            for x in range (0, 41):
+                # Map symbol in the map file
+                symbol = data[y][x]
+
+                if (y - 2 - index) % 2 == 0 or x % 2 == 0:
+                    # Symbols on the sides of tiles (borders)
+                    # Respective coordinates on the actual game window
+                    mapx = x * tile_size / 2
+                    mapy = (y - 2 - index) * tile_size / 2
+                    if symbol == '-' or symbol == '|':
+                        Border(self, mapx, mapy, tile_size, 4, black, (y - 2 - index) % 2)
+                else:
+                    # Symbols on the centres of tiles
+                    # Respective coordinates on the actual game window
+                    mapx = (x - 1) / 2 * tile_size
+                    mapy = (y - 3 - index) / 2 * tile_size
+                    if symbol == '1':
+                        Wall(self, mapx, mapy, tile_size, lightsteelblue)
+
+                    if symbol == 'g' or symbol == 'h' or symbol == 'j' or symbol == 's':
+                        Zone(self, mapx, mapy, tile_size, palegreen, symbol)
+                        if symbol == 's':
+                            self.startx = (x - 1)/2 * tile_size
+                            self.starty = (y - 2 - index)/2 * tile_size
+                            self.checkx = self.startx
+                            self.checky = self.starty
+
+        # Coins
+        for y in range (index + 34, index + 65):
+            for x in range(0, 41):
+                # Map symbol in the map file
+                symbol = data[y][x]
+
+        # Checkpoints
+        for y in range(index + 66, index + 81):
+            for x in range(0, 20):
+                # Map symbol in the map file
+                symbol = data[y][x]
+                if symbol != '.':
+                    self.checkpoints_list[int(symbol)].append(x * tile_size)
+                    self.checkpoints_list[int(symbol)].append((y - 66) * tile_size)
+
+        # Create enemies
+        EnemyLinear(self, 22, 4.65, 251, 220, [[251, 220], [549, 220]], blue, midnightblue)
+        EnemyLinear(self, 22, 4.65, 549, 260, [[549, 260], [251, 260]], blue, midnightblue)
+        EnemyLinear(self, 22, 4.65, 251, 300, [[251, 300], [549, 300]], blue, midnightblue)
+        EnemyLinear(self, 22, 4.65, 549, 340, [[549, 340], [251, 340]], blue, midnightblue)
+        EnemyLinear(self, 22, 4.65, 251, 380, [[251, 380], [549, 380]], blue, midnightblue)
+
+    def new_player(self, control, number):
+        """
+        Creates multiple new players at a time
+
+        Parameters
+        ----------
+        control : str
+            The level of this game with its specific map data in the map file
+        number : int
+            The number of players to create
+        Returns
+        -------
+        None
+
+        """
+
+        for i in range (0, number):
+            self.player = Player(self, control, self.checkx, self.checky, 2, 28, red, maroon)
+            self.player_list.append(self.player)
+        self.player_count = number
+
+    def end_gen(self):
+        """
+        Sorts the ended generation's moves, begins rewind phase and then makes the next generation
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
+        # End the generation
+        with open(moves_path, 'a') as file:
+            file.write("END OF GENERATION " + str(self.generation) + "\n")
+
+        # Sort moves based on their scores
+        python_sort((self.player_count + 1) * self.generation,
+                    (self.player_count + 1) * self.generation + self.player_count - 1)
+
+        with open(moves_path, 'r') as file:
+            data = file.readlines()
+
+        # Add best moves from this generation to best moves string
+        moves = data[(self.generation + 1) * (self.player_count + 1) - 2]
+        moves = moves[22 : len(moves)]
+        self.best_moves += moves.rstrip()
+        self.best_moves_num = len(self.best_moves)
+
+        # Update most recent checkpoint
+
+        self.generation += 1
+        self.rewind = True
+
+        # Player to replay best moves up to next generation
+        self.rewinder = Player(self, 'random', self.startx, self.starty, 2, 28, lime, black)
+        self.player_list.append(self.rewinder)
+
+        # Reset all enemy positions
+        for enemy in self.enemies:
+            enemy.reset()
+
+    def run(self):
+        """
+        Primary loop to update and draw game contents
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
+        # game loop - set self.playing = False to end the game
+        self.run = True
+        while self.run:
+            # dt is the time between each frame in seconds
+            self.dt = self.clock.tick(FPS) / 1000
+            # print(self.dt)
+
+            self.events()
+
+            # New generation
+            if len(self.player_list) == 0:
+                self.end_gen()
+
+            # Speed up game
+            for i in range(zoom):
+                self.update()
+            self.draw()
+
+    def update(self):
+        """
+        Updates all game sprites
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
+        # update sprites
+        self.all_sprites.update()
+
+    def draw_map(self):
+        """
+        Draws map grid and squares
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
+        for y in range(0, 15):
+            for x in range(0, 20):
+                fill = lavender
+                # Checkerboard pattern
+                if (x + y) % 2 == 0:
+                    fill = ghostwhite
+                # Draw grid squares
+                pygame.draw.rect(self.screen, fill, [0 + x * tile_size, 0 + y * tile_size, tile_size, tile_size])
+
+    def draw(self):
+        """
+        Draws all game sprites
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
+        self.screen.fill(black)
+        self.draw_map()
+        self.all_sprites.draw(self.screen)
+
+        for border in self.borders:
+            border.draw()
+
+        pygame.display.update()
+
+    def events(self):
+        """
+        Listens for any events such as keypresses
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
+        # All events
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.quit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.quit()
+
+    def quit(self):
+        """
+        Closes the Pygame window and quits the program
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
+        pygame.quit()
+        sys.exit()
+
+----------------------------------------
+
+--- File: Player.py ---
+from EnemyLinear import *
+
+
+class Player(pygame.sprite.Sprite):
+    """
+    The player that moves to complete levels
+
+    Attributes
+    ----------
+    game : Game
+        The game that this player is in
+    groups : sprite group
+        All sprite groups this sprite belongs in
+    image : surface
+        The pygame surface that the player will be drawn on
+    rect : rect
+        Pygame rectangle
+    rect.x : float
+        The x coordinate of the player
+    rect.y : float
+        The y coordinate of the player
+    vx : float
+        The velocity in the x direction
+    vy : float
+        The velocity in the y direction
+    direction : int
+        Direction of player's total velocity
+    speed : float
+        The speed of the player
+    size : int
+        The side length of the square player
+    fill : int list
+        The color of the player in RGB
+    border : int list
+        The border color of the player in RGB
+    moves : str
+        String of move history
+    changes : int
+        Number of directional changes in velocity
+    change_limit : int
+        The limit of directional changes before the player is killed off
+    checkpoint : int
+        The currently targetted checkpoint
+    hit : bool
+        True if the player collided with an enemy
+
+    Methods
+    -------
+    move(control : str) -> None
+        Moves the player based on its control
+    read_move(direction : int -> None
+        Manually moves player in the inputted direction
+    update(None) -> None
+        Updates player position
+    wall_collision(None) -> None
+        Checks for player collision with walls
+    enemy_collision(direction : char) -> None
+        Checks for player collision with enemies
+    respawn(None) -> None
+        Moves the player back to its original starting position
+    die(None) -> None
+        Removes the player from all sprite groups and lists
+    end_moves(None) -> None
+        Kills the player and writes its moves to the moves file along with it score
+
+    """
+
+    def __init__(self, game, control, x, y, speed, size, fill, border):
+        """
+        Constructor to build a player
+
+        Parameters
+        ----------
+        game : Game
+            The game that this player is in
+        control : str
+            The type of control that this player will move to, 'keys' or 'random'
+        x : float
+            The x coordinate of the player
+        y : float
+            The y coordinate of the player
+        speed : float
+            The speed of the player
+        size : int
+            The side length of the square player
+        fill : int list
+            The color of the player in RGB
+        border : int list
+            The color of the player border in RGB
+        moves : str
+            String of move history
+        changes : int
+            Number of directional changes in velocity
+        change_limit : int
+            The limit of directional changes before the player is killed off
+        checkpoint : int
+            The currently targetted checkpoint
+        hit : bool
+            True if the player collided with an enemy
+
+	    Returns
+        -------
+        None
+
+        """
+
+        self.groups = game.all_sprites, game.players
+        pygame.sprite.Sprite.__init__(self, self.groups)
+        self.game = game
+        self.image = pygame.Surface((size, size))
+        self.image.fill(border)
+        pygame.draw.rect(self.image, fill, [4, 4, 20, 20])
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+
+        self.vx = 0
+        self.vy = 0
+        self.direction = 0
+
+        self.control = control
+        self.speed = speed
+        self.size = size
+        self.fill = fill
+        self.border = border
+
+        # AI
+        self.moves = ''
+        self.changes = 0
+        self.change_limit = 20
+        # The nth targeted checkpoint
+        self.checkpoint = self.game.checkpoint
+        self.hit = False
+
+    def move(self, control):
+        """
+        Moves the player in a direction based on ts control type
+
+        Parameters
+        ----------
+        control : str
+
+
+        Returns
+        -------
+        None
+
+        """
+
+        if control == 'keys':
+            self.vx = 0
+            self.vy = 0
+            direction = 0
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+                self.vy = self.speed
+                direction = 5
+            if keys[pygame.K_w] or keys[pygame.K_UP]:
+                self.vy = -self.speed
+                direction = 1
+            if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+                self.vx = -self.speed
+                # Adjust direction
+                if direction == 5:
+                    direction = 6
+                elif direction == 1:
+                    direction = 8
+                else:
+                    direction = 7
+            if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+                self.vx = self.speed
+                #Adjust direction
+                if direction == 5:
+                    direction = 4
+                elif direction == 1:
+                    direction = 2
+                else:
+                    direction = 3
+            # Update direction and add to moves list
+            self.direction = direction
+            self.moves += str(self.direction)
+
+        elif control == 'random':
+            # 0 - rest, 1 - up, 2 - up right ... 8 - up left
+            direction = random.randint(0, 8)
+            # Probability of changing directions
+            change = random.randint(0, 10)
+
+            if change == 0:
+                # Another directional change
+                self.changes += 1
+                self.vx = 0
+                self.vy = 0
+
+                if direction == 4 or direction == 5 or direction == 6:
+                    self.vy = self.speed
+                if direction == 8 or direction == 1 or direction == 2:
+                    self.vy = -self.speed
+                if direction == 6 or direction == 7 or direction == 8:
+                    self.vx = -self.speed
+                if direction == 2 or direction == 3 or direction == 4:
+                    self.vx = self.speed
+                self.direction = direction
+
+            # Update moves list
+            self.moves += str(self.direction)
+
+    def read_move(self, direction):
+        """
+        Manually moves player in the inputted direction
+
+        Parameters
+        ----------
+        direction : int
+            Direction of move
+
+
+        Returns
+        -------
+        None
+
+        """
+
+        # Move in inputted direction
+        self.vx = 0
+        self.vy = 0
+        if direction == 4 or direction == 5 or direction == 6:
+            self.vy = self.speed
+        if direction == 8 or direction == 1 or direction == 2:
+            self.vy = -self.speed
+        if direction == 6 or direction == 7 or direction == 8:
+            self.vx = -self.speed
+        if direction == 2 or direction == 3 or direction == 4:
+            self.vx = self.speed
+
+
+    def update(self):
+        """
+        Updates player position
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
+        # Check if direction change limit is reached
+        if self.changes > self.change_limit:
+            self.end_moves()
+
+        # Rewind moves
+        if self.game.rewind:
+            if self.game.tick < self.game.best_moves_num:
+                self.read_move(int(self.game.best_moves[self.game.tick]))
+                self.game.tick += 1
+            else:
+                self.game.rewind = False
+                self.game.tick = 0
+
+                # New starting position for next generation
+                self.game.checkx = self.rect.x
+                self.game.checky = self.rect.y
+                self.game.new_player('random', self.game.player_count)
+
+
+                self.die()
+        else:
+            # Move normally
+            self.move(self.control)
+
+        self.rect.x += self.vx
+        self.wall_collision('x')
+        self.rect.y += self.vy
+        self.wall_collision('y')
+        self.enemy_collision()
+
+        # Check for if a checkpoint has been reached
+        if not self.game.rewind:
+            coordinates = self.game.checkpoints_list[self.checkpoint]
+
+            if math.hypot(float(coordinates[0] + tile_size / 2) - float(self.rect.x + self.size / 2),
+                          float(coordinates[1] + tile_size / 2) - float(self.rect.y + self.size / 2)) <= 1.5*tile_size:
+                if len(self.game.checkpoints_list[self.checkpoint + 1]) == 0:
+                    # Remove from sprite lists
+                    self.game.all_sprites.remove(self)
+                    self.game.players.remove(self)
+                    # Remove from player list and clears index
+                else:
+                    self.checkpoint += 1
+                    if self.checkpoint > self.game.checkpoint:
+                        self.game.checkpoint = self.checkpoint
+
+            # print(checkpoint_score(self.game, self))
+
+    def wall_collision(self, direction):
+        """
+        Checks for player collision with walls
+
+        Parameters
+        ----------
+        direction : char
+            The direction the player is hitting the wall in, x or y
+
+        Return
+        ------
+        None
+
+        """
+        if direction == 'x':
+            wall_hit = pygame.sprite.spritecollide(self, self.game.walls, False)
+            if wall_hit:
+                if self.vx > 0:
+                    self.rect.x = wall_hit[0].rect.left - self.rect.width
+                if self.vx < 0:
+                    self.rect.x = wall_hit[0].rect.right
+                self.vx = 0
+        if direction == 'y':
+            wall_hit = pygame.sprite.spritecollide(self, self.game.walls, False)
+            if wall_hit:
+                if self.vy > 0:
+                    self.rect.y = wall_hit[0].rect.top - self.rect.height
+                if self.vy < 0:
+                    self.rect.y = wall_hit[0].rect.bottom
+                self.vy = 0
+
+    def enemy_collision(self):
+        """
+        Checks for player collision with enemies
+
+        Parameters
+        ----------
+        None
+
+        Return
+        ------
+        None
+
+        """
+
+        enemy_hit = pygame.sprite.spritecollide(self, self.game.enemies, False)
+        if enemy_hit:
+            self.hit = True
+            self.end_moves()
+
+
+    def respawn(self):
+        """
+        Moves the player back to its original starting position
+
+        Parameters
+        ----------
+        None
+
+        Return
+        ------
+        None
+
+        """
+
+        self.x = self.game.startx * tile_size + 6
+        self.y = self.game.starty * tile_size + 6
+        self.rect.x = self.game.startx * tile_size + 6
+        self.rect.y = self.game.starty * tile_size + 6
+
+    def die(self):
+        """
+        Removes the player from all sprite groups and lists
+
+        Parameters
+        ----------
+        None
+
+        Return
+        ------
+        None
+
+        """
+
+        # Remove from sprite lists
+        self.game.all_sprites.remove(self)
+        self.game.players.remove(self)
+        # Remove from player list and clears index
+        # TODO: fix
+        if self in self.game.player_list:
+            self.game.player_list.pop(self.game.player_list.index(self))
+
+    def end_moves(self):
+        """
+        Kills the player and writes its moves to the moves file along with it score
+
+        Parameters
+        ----------
+        None
+
+        Return
+        ------
+        None
+
+        """
+
+        self.die()
+        # Writes moves pre death into moves file to be scored and sorted
+        with open(moves_path, 'a') as file:
+            file.write("Score: " + str(checkpoint_score(self.game, self)) + " Moves: " + self.moves + "\n")
+
+
+----------------------------------------
+
+--- File: SafeZone.py ---
+from Border import *
+class Zone(pygame.sprite.Sprite):
+    """
+    Safe / green zones for checkpoints
+
+    Attributes
+    ----------
+    x : float
+        The x coordinate of the zone
+    y : float
+        The y coordinate of the zone
+    size : int
+        The side length of the square zone
+    color : int list
+        The color of the zone in RGB
+    type : char
+        The type of green space, g - start, h - checkpoint, j - end, s - starting block
+
+
+
+    Methods
+    -------
+    die(None) -> None
+        Deletes the player
+    reset(None) -> None
+        Increases the number of attempted problems for a specific problem type by one
+    reset(None) -> None
+        Resets the users stats
+
+    """
+    def __init__(self, game, x, y, size, color, type):
+        self.groups = game.all_sprites, game.zones
+        pygame.sprite.Sprite.__init__(self, self.groups)
+        self.game = game
+        self.image = pygame.Surface((size, size))
+        self.image.fill(color)
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.type = type
+
+----------------------------------------
+
+--- File: Wall.py ---
+from SafeZone import *
+
+class Wall(pygame.sprite.Sprite):
+    """
+    A wall that serves as an obstacle for the player
+
+    Attributes
+    ----------
+    game : Game
+        The game that this wall is in
+    groups : sprite group
+        All sprite groups this sprite belongs in
+    x : float
+        The x coordinate of the wall
+    y : float
+        The y coordinate of the wall
+    size : int
+        The side length of the square wall
+    color : int list
+        The color of the wall in RGB
+
+    Methods
+    -------
+    None
+
+    """
+    def __init__(self, game, x, y, size, color):
+        self.groups = game.all_sprites, game.walls
+        pygame.sprite.Sprite.__init__(self, self.groups)
+        self.game = game
+        self.image = pygame.Surface((size, size))
+        self.image.fill(color)
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.size = size
+        self.color = color
+
+
+----------------------------------------
+
+--- File: functions.py ---
+from settings import *
+
+def bubble_sort(start, end):
+    """
+    Sorts the moves file from lowest to highest score with bubble sorting
+
+    Parameters
+    ----------
+    start: int
+        Starting line index of the lines that will be sorted
+    end: int
+        End line index of the lines that will be sorted
+
+    Return
+    ------
+    None
+
+    """
+
+    start_time = time.time()
+    with open(moves_path, 'r') as file:
+        data = file.readlines()
+    # Cluster that is going to be sorted
+    cluster = data[start : end + 1]
+
+    for i in range (0, len(cluster) - 1):
+        for j in range (0, len(cluster) - 1):
+            # Swap if value is greater than the next value
+            current = cluster[j]
+            next = cluster[j + 1]
+            if float(current[7 : 14]) > float(next[7 : 14]):
+                cluster[j], cluster[j + 1] = next, current
+
+    # Write back to moves file
+    data[start : end + 1] = cluster
+    with open(moves_path, 'w') as file:
+        file.writelines(data)
+    print("Bubble sort execution time:  %s seconds" % (time.time() - start_time))
+
+def insertion_sort(start, end):
+    """
+    Sorts the moves file from lowest to highest score with insertion sorting
+
+    Parameters
+    ----------
+    start: int
+        Starting line index of the lines that will be sorted
+    end: int
+        End line index of the lines that will be sorted
+
+    Return
+    ------
+    None
+
+    """
+
+    start_time = time.time()
+    with open(moves_path, 'r') as file:
+        data = file.readlines()
+    # Cluster that is going to be sorted
+    cluster = data[start : end + 1]
+
+    for i in range(0, len(cluster)):
+        current = cluster[i]
+        position = i
+
+        while position > 0 and cluster[position - 1] > current:
+            cluster[position] = cluster[position - 1]
+            position -= 1
+
+        cluster[position] = current
+    # [4, 4 , 6, 5, 8, 12]
+    # Write back to moves file
+    data[start : end + 1] = cluster
+    with open(moves_path, 'w') as file:
+        file.writelines(data)
+    print("Insertion sort execution time:  %s seconds" % (time.time() - start_time))
+
+def python_sort(start, end):
+    """
+    Sorts the moves file from lowest to highest score with python's built in
+
+    Parameters
+    ----------
+    start: int
+        Starting line index of the lines that will be sorted
+    end: int
+        End line index of the lines that will be sorted
+
+    Return
+    ------
+    None
+
+    """
+
+    start_time = time.time()
+    with open(moves_path, 'r') as file:
+        data = file.readlines()
+    # Cluster that is going to be sorted
+    cluster = data[start : end + 1]
+
+    cluster.sort()
+
+    # Write back to moves file
+    data[start : end + 1] = cluster
+    with open(moves_path, 'w') as file:
+        file.writelines(data)
+    print("Python built in sort execution time:  %s seconds" % (time.time() - start_time))
+
+
+def checkpoint_score(game, player):
+    """
+    Assigns a score to a set of moves based on the amp's checkpoints
+
+    Parameters
+    ----------
+    game : Game
+        The game
+    player : Player
+        The player object of the moves
+
+    Return
+    ------
+    str
+        Returns the score as a string
+
+    """
+
+    coordinates = game.checkpoints_list[player.checkpoint]
+
+    dist = math.hypot(float(coordinates[0] + tile_size / 2) - float(player.rect.x + tile_size / 2),
+                  float(coordinates[1] + tile_size / 2) - float(player.rect.y + tile_size / 2))
+
+    if player.checkpoint == 0:
+        total_dist = math.hypot(float(coordinates[0] + tile_size / 2) - float(game.startx + tile_size / 2),
+                                float(coordinates[1] + tile_size / 2) - float(game.starty + tile_size / 2))
+    else:
+        prev = game.checkpoints_list[player.checkpoint - 1]
+        total_dist = math.hypot(float(coordinates[0] + tile_size / 2) - float(prev[0] + tile_size / 2),
+                                float(coordinates[1] + tile_size / 2) - float(prev[1] + tile_size / 2))
+
+    score = player.checkpoint + 1 - dist / total_dist
+    if player.hit:
+        score -= 2
+
+    if score < 0:
+        return format(score, '.4f')
+    else:
+        return format(score, '.5f')
+
+def clear_moves():
+    """
+    Clears all contents from the moves file
+
+    Parameters
+    ----------
+    None
+
+    Return
+    ------
+    None
+
+    """
+
+    open(moves_path, 'w').close()
+
+----------------------------------------
+
+--- File: main.py ---
+import os
+import argparse
+import tkinter as tk
+from tkinter import filedialog
+
+INPUT_PATH = os.getcwd()
+OUTPUT_PATH = os.path.join(os.getcwd(), "summary.txt")
+
+DEFAULT_IGNORE_DIRS = {'.git', '_pycache_', 'venv', '.vscode', '.idea', 'node_modules', 'build', 'dist'}
+DEFAULT_IGNORE_FILES = {'.DS_Store'}
+DEFAULT_IGNORE_EXTENSIONS = {'.pyc', '.log', '.tmp', '.bak', '.swp'}
+
+def generate_project_summary(input_path=INPUT_PATH, output_path=OUTPUT_PATH):
+    if not input_path or not os.path.isdir(input_path):
+        print(f"Error: Invalid path '{input_path}'")
+        return
+
+    project_structure = []
+    python_files_content = []
+    yaml_files_content = []
+
+    abs_project_path = os.path.abspath(input_path)
+    project_root_name = os.path.basename(abs_project_path)
+
+    for dirpath, dirnames, filenames in os.walk(abs_project_path, topdown=True):
+        dirnames[:] = [d for d in dirnames if d not in DEFAULT_IGNORE_DIRS]
+
+        relative_dir = os.path.relpath(dirpath, abs_project_path)
+        level = relative_dir.count(os.sep) if relative_dir != '.' else 0
+        indent = '    ' * level + '|-- '
+
+        if relative_dir == '.':
+            project_structure.append(f"{project_root_name}/")
+        else:
+            if not any(ignored in relative_dir.split(os.sep) for ignored in DEFAULT_IGNORE_DIRS):
+                project_structure.append(f"{indent}{os.path.basename(dirpath)}/")
+
+        sub_indent = '    ' * (level + 1) + '|-- '
+        dirnames.sort()
+        filenames.sort()
+
+        for filename in filenames:
+            if filename in DEFAULT_IGNORE_FILES:
+                continue
+            if os.path.splitext(filename)[1] in DEFAULT_IGNORE_EXTENSIONS:
+                continue
+
+            if not any(ignored in os.path.join(relative_dir, filename).split(os.sep) for ignored in DEFAULT_IGNORE_DIRS):
+                project_structure.append(f"{sub_indent}{filename}")
+
+            if filename.endswith(('.py', '.yaml')):
+                file_path = os.path.join(dirpath, filename)
+                relative_file_path = os.path.relpath(file_path, abs_project_path)
+
+                if not any(ignored in relative_file_path.split(os.sep) for ignored in DEFAULT_IGNORE_DIRS):
+                    try:
+                        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                            content = f.read()
+
+                        if filename.endswith('.py'):
+                            python_files_content.append((relative_file_path, content))
+                        elif filename.endswith('.yaml'):
+                            yaml_files_content.append((relative_file_path, content))
+
+                    except Exception as e:
+                        if filename.endswith('.py'):
+                            python_files_content.append((relative_file_path, f"Error reading file: {e}"))
+                        elif filename.endswith('.yaml'):
+                            yaml_files_content.append((relative_file_path, f"Error reading file: {e}"))
+
+    try:
+        with open(output_path, 'w', encoding='utf-8') as outfile:
+            outfile.write("=========================================\n")
+            outfile.write(" PROJECT DIRECTORY STRUCTURE\n")
+            outfile.write("=========================================\n\n")
+            outfile.write(f"Root directory: {abs_project_path}\n\n")
+            outfile.write('\n'.join(project_structure))
+            outfile.write("\n\n=========================================\n")
+            outfile.write(" PYTHON FILES CONTENT (.py)\n")
+            outfile.write("=========================================\n\n")
+
+            python_files_content.sort(key=lambda item: item[0])
+
+            for rel_path, content in python_files_content:
+                outfile.write(f"--- File: {rel_path} ---\n")
+                outfile.write(content)
+                outfile.write("\n\n----------------------------------------\n\n")
+
+            if yaml_files_content:
+                outfile.write("\n\n=========================================\n")
+                outfile.write(" YAML FILES CONTENT (.yaml)\n")
+                outfile.write("=========================================\n\n")
+
+                yaml_files_content.sort(key=lambda item: item[0])
+                for rel_path, content in yaml_files_content:
+                    outfile.write(f"--- File: {rel_path} ---\n")
+                    outfile.write(content)
+                    outfile.write("\n\n----------------------------------------\n\n")
+
+    except Exception as e:
+        print(f"Error writing output file: {e}")
+
+if __name__ == "__main__":
+    generate_project_summary()
+
+----------------------------------------
+
+--- File: settings.py ---
+import pygame
+import time
+import sys
+import random
+import math
+
+pygame.init()
+
+# size of the square tiles that make up the map
+tile_size = 40
+screen_width = tile_size * 20
+screen_height = tile_size * 15
+
+# true if the game is running
+run = True
+
+# File path for data files
+map_path = '/Users/EthanWang/Game_Bot/map.txt'
+moves_path = '/Users/EthanWang/Game_Bot/moves.txt'
+
+# Game settings
+FPS = 60
+zoom = 5
+Title = "mmmmmmmmmm"
+
+# Colors
+red = (255, 0, 0)
+black = (0, 0, 0)
+lavender = (224, 218, 254)
+ghostwhite = (248, 247, 255)
+lightsteelblue = (170, 165, 255)
+maroon = (127, 0, 0)
+palegreen = (158, 242, 155)
+blue = (0, 0, 255)
+midnightblue = (0, 0, 68)
+lime = (53, 247, 0)
+
+
+
+----------------------------------------
+

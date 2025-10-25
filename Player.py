@@ -1,5 +1,4 @@
-from EnemyLinear import *
-
+from EnemyLinear import * # Make sure this imports Wall, SafeZone, Border, functions, settings
 
 class Player(pygame.sprite.Sprite):
     """
@@ -39,8 +38,12 @@ class Player(pygame.sprite.Sprite):
         Number of directional changes in velocity
     change_limit : int
         The limit of directional changes before the player is killed off
-    checkpoint : int
-        The currently targetted checkpoint
+    current_target_checkpoint_index : int
+        The index of the checkpoint this specific player is currently trying to reach
+    inherited_moves : str
+        String of moves inherited from the previous generation's best player
+    current_move_index : int
+        Index to track which inherited move is currently being executed
     hit : bool
         True if the player collided with an enemy
 
@@ -48,13 +51,13 @@ class Player(pygame.sprite.Sprite):
     -------
     move(control : str) -> None
         Moves the player based on its control
-    read_move(direction : int -> None
+    read_move(direction : int) -> None
         Manually moves player in the inputted direction
     update(None) -> None
         Updates player position
     wall_collision(None) -> None
         Checks for player collision with walls
-    enemy_collision(direction : char) -> None
+    enemy_collision(None) -> None
         Checks for player collision with enemies
     respawn(None) -> None
         Moves the player back to its original starting position
@@ -74,7 +77,7 @@ class Player(pygame.sprite.Sprite):
         game : Game
             The game that this player is in
         control : str
-            The type of control that this player will move to, 'keys' or 'random'
+            The type of control that this player will move to, 'keys', 'random', or 'hybrid'
         x : float
             The x coordinate of the player
         y : float
@@ -87,16 +90,6 @@ class Player(pygame.sprite.Sprite):
             The color of the player in RGB
         border : int list
             The color of the player border in RGB
-        moves : str
-            String of move history
-        changes : int
-            Number of directional changes in velocity
-        change_limit : int
-            The limit of directional changes before the player is killed off
-        checkpoint : int
-            The currently targetted checkpoint
-        hit : bool
-            True if the player collided with an enemy
 
 	    Returns
         -------
@@ -109,7 +102,8 @@ class Player(pygame.sprite.Sprite):
         self.game = game
         self.image = pygame.Surface((size, size))
         self.image.fill(border)
-        pygame.draw.rect(self.image, fill, [4, 4, 20, 20])
+        # The inner rectangle fill should be based on size, not hardcoded 20x20 if size changes
+        pygame.draw.rect(self.image, fill, [4, 4, size - 8, size - 8]) # Adjusted to be relative to size
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
@@ -124,22 +118,23 @@ class Player(pygame.sprite.Sprite):
         self.fill = fill
         self.border = border
 
-        # AI
+        # AI related attributes
         self.moves = ''
         self.changes = 0
-        self.change_limit = 20
-        # The nth targeted checkpoint
-        self.checkpoint = self.game.checkpoint
-        self.hit = False
+        self.change_limit = 100 # Limit for directional changes
+        self.current_target_checkpoint_index = self.game.checkpoint_progress # THIS WAS THE FIX
+        self.inherited_moves = '' # For 'hybrid' players to store moves from previous best
+        self.current_move_index = 0 # To track progress through inherited_moves
+        self.hit = False # True if the player collided with an enemy
+        self.score_calculated = False # To prevent multiple score writings on death
 
     def move(self, control):
         """
-        Moves the player in a direction based on ts control type
+        Moves the player in a direction based on its control type
 
         Parameters
         ----------
-        control : str
-
+        control : str (e.g., 'keys', 'random')
 
         Returns
         -------
@@ -160,21 +155,21 @@ class Player(pygame.sprite.Sprite):
                 direction = 1
             if keys[pygame.K_a] or keys[pygame.K_LEFT]:
                 self.vx = -self.speed
-                # Adjust direction
-                if direction == 5:
+                # Adjust direction for diagonals
+                if direction == 5: # moving down-left
                     direction = 6
-                elif direction == 1:
+                elif direction == 1: # moving up-left
                     direction = 8
-                else:
+                else: # just left
                     direction = 7
             if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
                 self.vx = self.speed
-                #Adjust direction
-                if direction == 5:
+                #Adjust direction for diagonals
+                if direction == 5: # moving down-right
                     direction = 4
-                elif direction == 1:
+                elif direction == 1: # moving up-right
                     direction = 2
-                else:
+                else: # just right
                     direction = 3
             # Update direction and add to moves list
             self.direction = direction
@@ -184,25 +179,27 @@ class Player(pygame.sprite.Sprite):
             # 0 - rest, 1 - up, 2 - up right ... 8 - up left
             direction = random.randint(0, 8)
             # Probability of changing directions
-            change = random.randint(0, 10)
-
-            if change == 0:
-                # Another directional change
-                self.changes += 1
+            # Only change if the random number is 0 (1/11 chance to change direction)
+            # This makes movement less chaotic than changing every tick
+            change_chance = random.randint(0, 10) # 0 to 10, total 11 possibilities
+            
+            if change_chance == 0: # If we decide to change direction
+                self.changes += 1 # Another directional change
                 self.vx = 0
-                self.vy = 0
+                self.vy = 0 # Reset velocity before setting new one
 
-                if direction == 4 or direction == 5 or direction == 6:
+                if direction in [4, 5, 6]: # Down, Down-Left, Down-Right
                     self.vy = self.speed
-                if direction == 8 or direction == 1 or direction == 2:
+                if direction in [8, 1, 2]: # Up, Up-Left, Up-Right
                     self.vy = -self.speed
-                if direction == 6 or direction == 7 or direction == 8:
+                if direction in [6, 7, 8]: # Left, Down-Left, Up-Left
                     self.vx = -self.speed
-                if direction == 2 or direction == 3 or direction == 4:
+                if direction in [2, 3, 4]: # Right, Up-Right, Down-Right
                     self.vx = self.speed
-                self.direction = direction
+                self.direction = direction # Update current direction
 
-            # Update moves list
+            # Update moves list (even if direction didn't visually change,
+            # this records the 'intent' or lack of change)
             self.moves += str(self.direction)
 
     def read_move(self, direction):
@@ -212,8 +209,7 @@ class Player(pygame.sprite.Sprite):
         Parameters
         ----------
         direction : int
-            Direction of move
-
+            Direction of move (0-8)
 
         Returns
         -------
@@ -224,19 +220,18 @@ class Player(pygame.sprite.Sprite):
         # Move in inputted direction
         self.vx = 0
         self.vy = 0
-        if direction == 4 or direction == 5 or direction == 6:
+        if direction in [4, 5, 6]: # Down, Down-Left, Down-Right
             self.vy = self.speed
-        if direction == 8 or direction == 1 or direction == 2:
+        if direction in [8, 1, 2]: # Up, Up-Left, Up-Right
             self.vy = -self.speed
-        if direction == 6 or direction == 7 or direction == 8:
+        if direction in [6, 7, 8]: # Left, Down-Left, Up-Left
             self.vx = -self.speed
-        if direction == 2 or direction == 3 or direction == 4:
+        if direction in [2, 3, 4]: # Right, Up-Right, Down-Right
             self.vx = self.speed
-
 
     def update(self):
         """
-        Updates player position
+        Updates player position and handles AI logic
 
         Parameters
         ----------
@@ -248,53 +243,89 @@ class Player(pygame.sprite.Sprite):
 
         """
 
-        # Check if direction change limit is reached
-        if self.changes > self.change_limit:
+        # Check if direction change limit is reached (only for AI controlled players)
+        if self.control in ['random', 'hybrid'] and self.changes > self.change_limit:
             self.end_moves()
+            return # Player died, no further updates for this tick
 
-        # Rewind moves
+        # Handle Rewinder logic (the lime player)
         if self.game.rewind:
-            if self.game.tick < self.game.best_moves_num:
-                self.read_move(int(self.game.best_moves[self.game.tick]))
-                self.game.tick += 1
-            else:
-                self.game.rewind = False
-                self.game.tick = 0
+            # Check if this player is the rewinder (assuming rewinder is always the last added player)
+            # A more robust check might be self.fill == lime or passing a specific 'rewinder' control
+            if self.fill == lime: # Assuming lime is exclusively for the rewinder
+                if self.game.tick < self.game.best_moves_num_for_rewind:
+                    # Execute inherited move
+                    self.read_move(int(self.game.best_moves_for_rewind[self.game.tick]))
+                    self.game.tick += 1
+                    # Rewinder doesn't need to record its own 'moves' string for sorting
+                else:
+                    # Rewinder has finished its path
+                    self.game.rewind = False
+                    self.game.tick = 0 # Reset tick for next rewind phase
 
-                # New starting position for next generation
-                self.game.checkx = self.rect.x
-                self.game.checky = self.rect.y
-                self.game.new_player('random', self.game.player_count)
+                    # Update starting position for next generation to rewinder's final position
+                    self.game.checkx = self.rect.x
+                    self.game.checky = self.rect.y
+                    print(f"Rewinder finished. New generation starting point: ({self.game.checkx}, {self.game.checky})")
 
+                    # Create the new generation of players
+                    self.game.new_generation_players()
 
-                self.die()
+                    self.die() # The rewinder dies after creating the new generation
+                    return # No further updates for the rewinder this tick
         else:
-            # Move normally
-            self.move(self.control)
+            # Logic for normal players (random or hybrid)
+            if self.control == 'hybrid':
+                if self.current_move_index < len(self.inherited_moves):
+                    # Execute step from inherited moves
+                    direction_from_inherited = int(self.inherited_moves[self.current_move_index])
+                    self.read_move(direction_from_inherited)
+                    self.current_move_index += 1
+                    self.moves += str(direction_from_inherited) # Record this move
+                else:
+                    # After inherited moves, switch to random movement
+                    self.move('random')
+            elif self.control == 'random': # Initial generation players
+                self.move('random')
+            elif self.control == 'keys': # Manual player (if any)
+                self.move('keys')
+            # If control is anything else, player does not move
 
+        # Apply velocity and check collisions
         self.rect.x += self.vx
         self.wall_collision('x')
         self.rect.y += self.vy
         self.wall_collision('y')
-        self.enemy_collision()
+        self.enemy_collision() # This will call end_moves() if hit
 
-        # Check for if a checkpoint has been reached
-        if not self.game.rewind:
-            coordinates = self.game.checkpoints_list[self.checkpoint]
+        # Check for if a checkpoint has been reached (only for actual players, not rewinder)
+        # Assuming rewinder's score isn't tracked in moves.txt
+        if not self.game.rewind or self.fill != lime:
+            if self.current_target_checkpoint_index < len(self.game.checkpoints_list):
+                coordinates = self.game.checkpoints_list[self.current_target_checkpoint_index]
 
-            if math.hypot(float(coordinates[0] + tile_size / 2) - float(self.rect.x + self.size / 2),
-                          float(coordinates[1] + tile_size / 2) - float(self.rect.y + self.size / 2)) <= 1.5*tile_size:
-                if len(self.game.checkpoints_list[self.checkpoint + 1]) == 0:
-                    # Remove from sprite lists
-                    self.game.all_sprites.remove(self)
-                    self.game.players.remove(self)
-                    # Remove from player list and clears index
-                else:
-                    self.checkpoint += 1
-                    if self.checkpoint > self.game.checkpoint:
-                        self.game.checkpoint = self.checkpoint
+                # Calculate distance to center of the target checkpoint tile
+                checkpoint_center_x = float(coordinates[0] + tile_size / 2)
+                checkpoint_center_y = float(coordinates[1] + tile_size / 2)
+                player_center_x = float(self.rect.x + self.size / 2)
+                player_center_y = float(self.rect.y + self.size / 2)
 
-            # print(checkpoint_score(self.game, self))
+                dist_to_checkpoint = math.hypot(checkpoint_center_x - player_center_x,
+                                                  checkpoint_center_y - player_center_y)
+
+                # If player is close enough to the checkpoint
+                if dist_to_checkpoint <= 1.5 * tile_size: # 1.5 times tile size for some leniency
+                    self.current_target_checkpoint_index += 1
+                    # Update global game checkpoint progress if this player reached further
+                    if self.current_target_checkpoint_index > self.game.checkpoint_progress:
+                        self.game.checkpoint_progress = self.current_target_checkpoint_index
+                        print(f"Player (Gen {self.game.generation}) reached checkpoint {self.game.checkpoint_progress -1}.")
+                    
+                    # If all checkpoints are reached, the AI has "passed the level"
+                    if self.current_target_checkpoint_index >= len(self.game.checkpoints_list):
+                        print(f"AI passed Level {self.game.level} in Generation {self.game.generation}!")
+                        self.end_moves(passed_level=True) # Pass a flag indicating level completion
+                        self.game.run = False # Stop the game loop
 
     def wall_collision(self, direction):
         """
@@ -313,19 +344,19 @@ class Player(pygame.sprite.Sprite):
         if direction == 'x':
             wall_hit = pygame.sprite.spritecollide(self, self.game.walls, False)
             if wall_hit:
-                if self.vx > 0:
-                    self.rect.x = wall_hit[0].rect.left - self.rect.width
-                if self.vx < 0:
-                    self.rect.x = wall_hit[0].rect.right
-                self.vx = 0
+                if self.vx > 0: # Moving right, hit wall from left
+                    self.rect.right = wall_hit[0].rect.left
+                if self.vx < 0: # Moving left, hit wall from right
+                    self.rect.left = wall_hit[0].rect.right
+                self.vx = 0 # Stop horizontal movement
         if direction == 'y':
             wall_hit = pygame.sprite.spritecollide(self, self.game.walls, False)
             if wall_hit:
-                if self.vy > 0:
-                    self.rect.y = wall_hit[0].rect.top - self.rect.height
-                if self.vy < 0:
-                    self.rect.y = wall_hit[0].rect.bottom
-                self.vy = 0
+                if self.vy > 0: # Moving down, hit wall from top
+                    self.rect.bottom = wall_hit[0].rect.top
+                if self.vy < 0: # Moving up, hit wall from bottom
+                    self.rect.top = wall_hit[0].rect.bottom
+                self.vy = 0 # Stop vertical movement
 
     def enemy_collision(self):
         """
@@ -344,12 +375,11 @@ class Player(pygame.sprite.Sprite):
         enemy_hit = pygame.sprite.spritecollide(self, self.game.enemies, False)
         if enemy_hit:
             self.hit = True
-            self.end_moves()
-
+            self.end_moves() # Player dies on enemy hit
 
     def respawn(self):
         """
-        Moves the player back to its original starting position
+        Moves the player back to its original starting position (or last checkpoint)
 
         Parameters
         ----------
@@ -361,10 +391,22 @@ class Player(pygame.sprite.Sprite):
 
         """
 
-        self.x = self.game.startx * tile_size + 6
-        self.y = self.game.starty * tile_size + 6
-        self.rect.x = self.game.startx * tile_size + 6
-        self.rect.y = self.game.starty * tile_size + 6
+        # For AI, respawn isn't typically used. Players just "die" and new ones are made.
+        # But if you want to reuse players, this can be handy.
+        self.rect.x = self.game.startx
+        self.rect.y = self.game.starty
+        # Reset velocities and other state
+        self.vx = 0
+        self.vy = 0
+        self.direction = 0
+        self.changes = 0
+        self.current_target_checkpoint_index = 0
+        self.moves = ''
+        self.inherited_moves = ''
+        self.current_move_index = 0
+        self.hit = False
+        self.score_calculated = False
+
 
     def die(self):
         """
@@ -383,26 +425,41 @@ class Player(pygame.sprite.Sprite):
         # Remove from sprite lists
         self.game.all_sprites.remove(self)
         self.game.players.remove(self)
-        # Remove from player list and clears index
-        # TODO: fix
+        # Remove from player list
         if self in self.game.player_list:
-            self.game.player_list.pop(self.game.player_list.index(self))
+            self.game.player_list.remove(self)
 
-    def end_moves(self):
+
+    def end_moves(self, passed_level=False):
         """
-        Kills the player and writes its moves to the moves file along with it score
+        Kills the player and writes its moves to the moves file along with its score.
+        Only writes if score hasn't been calculated for this player already.
 
         Parameters
         ----------
-        None
+        passed_level : bool
+            True if the player died because it completed the level.
 
         Return
         ------
         None
 
         """
+        if self.score_calculated: # Prevent writing score multiple times
+            return
 
-        self.die()
+        self.score_calculated = True # Mark score as calculated
+
+        # Calculate score before dying
+        score = checkpoint_score(self.game, self)
+
         # Writes moves pre death into moves file to be scored and sorted
         with open(moves_path, 'a') as file:
-            file.write("Score: " + str(checkpoint_score(self.game, self)) + " Moves: " + self.moves + "\n")
+            file.write(f"Score: {score} Moves: {self.moves}\n")
+        
+        # If the level was passed, stop further processing
+        if passed_level:
+            self.game.run = False # Stop the game loop
+            print(f"AI Successfully Completed Level {self.game.level}!")
+
+        self.die()

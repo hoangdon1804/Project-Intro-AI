@@ -15,8 +15,8 @@ screen_height = tile_size * 15
 run = True
 
 # File path for data files
-map_path = '/Users/EthanWang/Game_Bot/map.txt'
-moves_path = '/Users/EthanWang/Game_Bot/moves.txt'
+map_path = r"D:\Game-Bot\map.txt"
+moves_path = r"D:\Game-Bot\moves.txt"
 
 # Game settings
 FPS = 60
