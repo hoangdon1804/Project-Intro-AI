@@ -23,6 +23,19 @@ FPS = 60
 zoom = 5
 Title = "mmmmmmmmmm"
 
+# --- Các trọng số và phần thưởng cho hàm tính điểm mới ---
+# Trọng số phạt cho mỗi frame ở trong vùng an toàn (g, s, h)
+SAFE_ZONE_PENALTY_WEIGHT = 5.0
+# Trọng số phạt cho mỗi bước di chuyển
+MOVE_PENALTY_WEIGHT = 0.00
+# Điểm phạt khi va chạm kẻ thù
+ENEMY_HIT_PENALTY = 0.0
+# Điểm phạt khi đi luẩn quẩn đến chết (nặng hơn va chạm enemy)
+WANDER_DEATH_PENALTY = 400.0
+# Điểm thưởng cực lớn khi chiến thắng
+WIN_REWARD = 10000.0
+# ---------------------------------------------------------
+
 # Colors
 red = (255, 0, 0)
 black = (0, 0, 0)
@@ -34,4 +47,3 @@ palegreen = (158, 242, 155)
 blue = (0, 0, 255)
 midnightblue = (0, 0, 68)
 lime = (53, 247, 0)
-
