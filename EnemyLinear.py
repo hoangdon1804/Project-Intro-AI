@@ -1,177 +1,51 @@
-from EnemyCircular import *
+import pygame
+import math
+from settings import *
+
+FIXED_POINT_SCALE = 1000
 
 class EnemyLinear(pygame.sprite.Sprite):
-    """
-    Enemy that travels in a linear path
-
-    Attributes
-    ----------
-    game : Game
-        The game this enemy is in
-    groups : sprite group
-        All sprite groups this sprite belongs in
-    size : int
-        The diameter of the circular enemy
-    speed : float
-        The speed of the enemy
-    x : float
-        x coordinate of the centre of the circle
-    y : float
-        y coordinate of the centre of the circle
-    xint : float
-        The starting x coordinate
-    yint : float
-        The starting y coordinate
-    rect.x : float
-        The left bound coordinate of the circle
-    rect.y : float
-        The upper bound coordinate of the circle
-    criticals : float list list
-        A list of coordinates that the enemy will loop around
-    prevx : float
-        The x coordinate of the previous path point
-    prevy : float
-        The y coordinate of the previous path point
-    nextx : float
-        The x coordinate of the next path point
-    nexty : float
-        The y coordinate of the previous path point
-    step : int
-        The stage in the loop between critical points that the enemy is on
-    fill : int list
-        The color of the enemy
-    border : int list
-            The color of the enemy's border
-
-    Methods
-    -------
-    moves(None) -> None
-        Moves the enemy, following its critical track
-    update(None) -> None
-        Updates the enemy's position after it's moves have been made
-    reset(None) -> None
-        Moves the enemy back to its original starting position
-
-    """
-
     def __init__(self, game, size, speed, x, y, criticals, fill, border):
-        """
-        Constructor to build a player
-
-        Parameters
-        ----------
-        game : Game
-            The game this enemy is in
-        size : int
-            The diameter of the circular enemy
-        speed : float
-            The speed of the enemy
-        x : float
-            Starting x coordinate
-        y : float
-            Starting y coordinate
-        criticals : float list list
-            A list of coordinates that the enemy will loop around
-        fill : int list
-            The color of the enemy
-        border : int list
-            The color of the enemy's border
-
-	    Returns
-        -------
-        None
-
-        """
-        # Sprites
         self.groups = game.all_sprites, game.enemies
         pygame.sprite.Sprite.__init__(self, self.groups)
         self.game = game
-
-        # Enemy model
         self.image = pygame.Surface((size, size), pygame.SRCALPHA, 32)
         pygame.draw.circle(self.image, border, [int(size/2), int(size/2)], int(size/2))
         pygame.draw.circle(self.image, fill, [int(size/2), int(size/2)], int(size/2) - 4)
         self.rect = self.image.get_rect()
-        self.rect.x = x - size/2
-        self.rect.y = y - size/2
-
         self.size = size
-        self.speed = speed
-        self.x = x
-        self.y = y
-        self.prevx = x
-        self.prevy = y
-        self.nextx = criticals[0][0]
-        self.nexty = criticals[0][1]
-        self.criticals = criticals
-        self.step = 0
-        self.fill = fill
-        self.border = border
+        self.speed_fixed = int(speed * FIXED_POINT_SCALE)
+        self.x_fixed = int(x * FIXED_POINT_SCALE)
+        self.y_fixed = int(y * FIXED_POINT_SCALE)
+        self.criticals_fixed = [[int(p[0] * FIXED_POINT_SCALE), int(p[1] * FIXED_POINT_SCALE)] for p in criticals]
+        self.reset()
 
     def move(self):
-        """
-        Moves the enemy, following its critical track
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-
-        """
-
-        if math.hypot(self.nextx - self.x, self.nexty - self.y) <= self.speed:
-            self.x = self.nextx
-            self.y = self.nexty
-            self.prevx = self.nextx
-            self.prevy = self.nexty
-            if self.step + 1 == len(self.criticals):
-                # Loop back to the beginning
-                self.step = 0
-            else:
-                self.step += 1
-            self.nextx = self.criticals[self.step][0]
-            self.nexty = self.criticals[self.step][1]
+        dx = self.nextx_fixed - self.x_fixed
+        dy = self.nexty_fixed - self.y_fixed
+        dist_sq = dx*dx + dy*dy
+        if dist_sq <= self.speed_fixed * self.speed_fixed:
+            self.x_fixed = self.nextx_fixed
+            self.y_fixed = self.nexty_fixed
+            self.step = (self.step + 1) % len(self.criticals_fixed)
+            self.nextx_fixed = self.criticals_fixed[self.step][0]
+            self.nexty_fixed = self.criticals_fixed[self.step][1]
         else:
-            hyp = math.hypot(self.nextx - self.prevx, self.nexty - self.prevy)
-            self.x += (self.nextx - self.prevx) * (self.speed / hyp)
-            self.y += (self.nexty - self.prevy) * (self.speed / hyp)
+            dist = int(math.sqrt(dist_sq))
+            if dist == 0: return
+            self.x_fixed += (dx * self.speed_fixed) // dist
+            self.y_fixed += (dy * self.speed_fixed) // dist
 
     def update(self):
-        """
-        Updates the enemy's position after it's moves have been made
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-
-        """
-
         self.move()
-        self.rect.x = self.x - self.size/2
-        self.rect.y = self.y - self.size/2
+        self.rect.x = (self.x_fixed // FIXED_POINT_SCALE) - self.size // 2
+        self.rect.y = (self.y_fixed // FIXED_POINT_SCALE) - self.size // 2
 
     def reset(self):
-        """
-        Moves the enemy back to its original starting position
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-
-        """
-
-        self.x = self.criticals[0][0]
-        self.y = self.criticals[0][1]
-        self.rect.x = self.x - self.size/2
-        self.rect.y = self.y - self.size/2
+        self.x_fixed = self.criticals_fixed[0][0]
+        self.y_fixed = self.criticals_fixed[0][1]
+        self.rect.x = (self.x_fixed // FIXED_POINT_SCALE) - self.size // 2
+        self.rect.y = (self.y_fixed // FIXED_POINT_SCALE) - self.size // 2
+        self.step = 0
+        self.nextx_fixed = self.criticals_fixed[self.step][0]
+        self.nexty_fixed = self.criticals_fixed[self.step][1]

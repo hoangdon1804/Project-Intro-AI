@@ -14,11 +14,11 @@ Game-Bot/
     |-- SafeZone.py
     |-- Wall.py
     |-- archive.txt
-    |-- config-feedforward.txt
-    |-- config.txt
+    |-- beat.py
     |-- functions.py
     |-- main.py
     |-- map.txt
+    |-- moves.txt
     |-- settings.py
     |-- summary.txt
     |-- test.py
@@ -111,209 +111,134 @@ from Wall import *
 --- File: EnemyLinear.py ---
 from EnemyCircular import *
 
+# Hằng số để chuyển đổi giữa số thực và số nguyên điểm cố định
+FIXED_POINT_SCALE = 1000
+
 class EnemyLinear(pygame.sprite.Sprite):
     """
-    Enemy that travels in a linear path
-
-    Attributes
-    ----------
-    game : Game
-        The game this enemy is in
-    groups : sprite group
-        All sprite groups this sprite belongs in
-    size : int
-        The diameter of the circular enemy
-    speed : float
-        The speed of the enemy
-    x : float
-        x coordinate of the centre of the circle
-    y : float
-        y coordinate of the centre of the circle
-    xint : float
-        The starting x coordinate
-    yint : float
-        The starting y coordinate
-    rect.x : float
-        The left bound coordinate of the circle
-    rect.y : float
-        The upper bound coordinate of the circle
-    criticals : float list list
-        A list of coordinates that the enemy will loop around
-    prevx : float
-        The x coordinate of the previous path point
-    prevy : float
-        The y coordinate of the previous path point
-    nextx : float
-        The x coordinate of the next path point
-    nexty : float
-        The y coordinate of the previous path point
-    step : int
-        The stage in the loop between critical points that the enemy is on
-    fill : int list
-        The color of the enemy
-    border : int list
-            The color of the enemy's border
-
-    Methods
-    -------
-    moves(None) -> None
-        Moves the enemy, following its critical track
-    update(None) -> None
-        Updates the enemy's position after it's moves have been made
-    reset(None) -> None
-        Moves the enemy back to its original starting position
-
+    Enemy that travels in a linear path (Deterministic Version)
     """
-
     def __init__(self, game, size, speed, x, y, criticals, fill, border):
-        """
-        Constructor to build a player
-
-        Parameters
-        ----------
-        game : Game
-            The game this enemy is in
-        size : int
-            The diameter of the circular enemy
-        speed : float
-            The speed of the enemy
-        x : float
-            Starting x coordinate
-        y : float
-            Starting y coordinate
-        criticals : float list list
-            A list of coordinates that the enemy will loop around
-        fill : int list
-            The color of the enemy
-        border : int list
-            The color of the enemy's border
-
-	    Returns
-        -------
-        None
-
-        """
-        # Sprites
         self.groups = game.all_sprites, game.enemies
         pygame.sprite.Sprite.__init__(self, self.groups)
         self.game = game
 
-        # Enemy model
         self.image = pygame.Surface((size, size), pygame.SRCALPHA, 32)
         pygame.draw.circle(self.image, border, [int(size/2), int(size/2)], int(size/2))
         pygame.draw.circle(self.image, fill, [int(size/2), int(size/2)], int(size/2) - 4)
         self.rect = self.image.get_rect()
-        self.rect.x = x - size/2
-        self.rect.y = y - size/2
-
+        
         self.size = size
-        self.speed = speed
-        self.x = x
-        self.y = y
-        self.prevx = x
-        self.prevy = y
-        self.nextx = criticals[0][0]
-        self.nexty = criticals[0][1]
-        self.criticals = criticals
-        self.step = 0
-        self.fill = fill
-        self.border = border
+        
+        # --- THAY ĐỔI SANG SỐ HỌC ĐIỂM CỐ ĐỊNH ---
+        # Chuyển đổi tất cả giá trị float sang integer để loại bỏ sai số
+        self.speed_fixed = int(speed * FIXED_POINT_SCALE)
+        self.x_fixed = int(x * FIXED_POINT_SCALE)
+        self.y_fixed = int(y * FIXED_POINT_SCALE)
+        
+        self.criticals_fixed = [[int(p[0] * FIXED_POINT_SCALE), int(p[1] * FIXED_POINT_SCALE)] for p in criticals]
+        
+        # Cập nhật rect ban đầu
+        self.rect.x = (self.x_fixed // FIXED_POINT_SCALE) - size // 2
+        self.rect.y = (self.y_fixed // FIXED_POINT_SCALE) - size // 2
+
+        # Khởi tạo trạng thái ban đầu
+        self.reset()
 
     def move(self):
         """
-        Moves the enemy, following its critical track
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-
+        Moves the enemy using deterministic integer-based math.
         """
+        # Tính khoảng cách bằng số nguyên để tránh sai số
+        dx = self.nextx_fixed - self.x_fixed
+        dy = self.nexty_fixed - self.y_fixed
+        dist_sq = dx*dx + dy*dy
 
-        if math.hypot(self.nextx - self.x, self.nexty - self.y) <= self.speed:
-            self.x = self.nextx
-            self.y = self.nexty
-            self.prevx = self.nextx
-            self.prevy = self.nexty
-            if self.step + 1 == len(self.criticals):
-                # Loop back to the beginning
+        # Nếu đã đến rất gần điểm tiếp theo
+        if dist_sq <= self.speed_fixed * self.speed_fixed:
+            self.x_fixed = self.nextx_fixed
+            self.y_fixed = self.nexty_fixed
+            self.prevx_fixed = self.nextx_fixed
+            self.prevy_fixed = self.nexty_fixed
+            
+            if self.step + 1 == len(self.criticals_fixed):
                 self.step = 0
             else:
                 self.step += 1
-            self.nextx = self.criticals[self.step][0]
-            self.nexty = self.criticals[self.step][1]
+                
+            self.nextx_fixed = self.criticals_fixed[self.step][0]
+            self.nexty_fixed = self.criticals_fixed[self.step][1]
         else:
-            hyp = math.hypot(self.nextx - self.prevx, self.nexty - self.prevy)
-            self.x += (self.nextx - self.prevx) * (self.speed / hyp)
-            self.y += (self.nexty - self.prevy) * (self.speed / hyp)
+            # Dùng số nguyên để tính toán di chuyển, đảm bảo tính tất định
+            dist = int(math.sqrt(dist_sq))
+            if dist == 0: return # Tránh chia cho 0
+            
+            self.x_fixed += (dx * self.speed_fixed) // dist
+            self.y_fixed += (dy * self.speed_fixed) // dist
 
     def update(self):
         """
-        Updates the enemy's position after it's moves have been made
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-
+        Updates the enemy's position after its moves have been made.
         """
-
         self.move()
-        self.rect.x = self.x - self.size/2
-        self.rect.y = self.y - self.size/2
+        # Chỉ chuyển đổi về pixel khi cập nhật rect để vẽ
+        self.rect.x = (self.x_fixed // FIXED_POINT_SCALE) - self.size // 2
+        self.rect.y = (self.y_fixed // FIXED_POINT_SCALE) - self.size // 2
 
     def reset(self):
         """
-        Moves the enemy back to its original starting position
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-
+        Resets the enemy to its original state completely and deterministically.
         """
-
-        self.x = self.criticals[0][0]
-        self.y = self.criticals[0][1]
-        self.rect.x = self.x - self.size/2
-        self.rect.y = self.y - self.size/2
-
+        # Reset vị trí về điểm bắt đầu
+        self.x_fixed = self.criticals_fixed[0][0]
+        self.y_fixed = self.criticals_fixed[0][1]
+        
+        # Cập nhật rect
+        self.rect.x = (self.x_fixed // FIXED_POINT_SCALE) - self.size // 2
+        self.rect.y = (self.y_fixed // FIXED_POINT_SCALE) - self.size // 2
+        
+        # Reset toàn bộ trạng thái đường đi
+        self.step = 0
+        self.prevx_fixed = self.x_fixed
+        self.prevy_fixed = self.y_fixed
+        self.nextx_fixed = self.criticals_fixed[0][0]
+        self.nexty_fixed = self.criticals_fixed[0][1]
 
 ----------------------------------------
 
 --- File: Game.py ---
-# File: Game.py
-
-import pygame
-import sys
-from settings import *
-from Wall import Wall
-from SafeZone import Zone
-from Border import Border
-from EnemyLinear import EnemyLinear
+from Player import * 
+from functions import *
 
 class Game:
+    """
+    The game and functions for setting up
+    """
+
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((screen_width, screen_height))
         pygame.display.set_caption(Title)
         self.clock = pygame.time.Clock()
-        
-        # <<< THAY ĐỔI: Xóa bỏ hình ảnh cho player giỏi nhất >>>
-        # self.best_player_image = ... (dòng này đã bị xóa)
-        # <<< KẾT THÚC THAY ĐỔI >>>
+        pygame.key.set_repeat(1, 1)
+        self.tick = 0
+        self.player_count = 100
+
+    def handle_win(self, winning_moves):
+        print("Archiving winning moves...")
+        try:
+            with open(archive_path, 'a', encoding='utf-8') as f:
+                f.write(f"Level {self.level} Solution:\n")
+                f.write(winning_moves + "\n\n")
+            print(f"Successfully saved winning moves to {archive_path}")
+            print("You can now run beat.py to watch the replay.")
+        except Exception as e:
+            print(f"Error saving to archive.txt: {e}")
 
     def new(self, level):
         self.all_sprites = pygame.sprite.Group()
+        self.players = pygame.sprite.Group()
+        self.player_list = []
         self.walls = pygame.sprite.Group()
         self.zones = pygame.sprite.Group()
         self.borders = pygame.sprite.Group()
@@ -321,9 +246,18 @@ class Game:
 
         self.startx = 0
         self.starty = 0
+        self.checkx = 0
+        self.checky = 0
         self.level = level
         self.target_x = None
         self.target_y = None
+
+        self.top_5_moves = []
+        self.best_move_for_rewind = ''
+        self.best_move_num_for_rewind = 0
+        
+        self.generation = 0
+        self.rewind = False
 
         try:
             with open(map_path, 'r', encoding='utf-8') as file:
@@ -333,19 +267,32 @@ class Game:
             self.quit()
             return
 
-        try:
-            index = data.index(">>>>>>>>>>>>>>>> Level " + str(self.level) + "\n")
-        except ValueError:
+        # Sử dụng logic tìm kiếm linh hoạt để tránh lỗi vặt
+        index = -1
+        level_header = f"Level {self.level}"
+        for i, line in enumerate(data):
+            if level_header in line:
+                index = i
+                break
+        
+        if index == -1:
             print(f"Error: Level {self.level} not found in map file.")
             self.quit()
             return
 
-        # Đọc map layout
-        for y_idx, line in enumerate(data[index + 2 : index + 33]):
-            for x_idx, symbol in enumerate(line):
-                mapx_grid = x_idx
-                mapy_grid = y_idx
-                if mapy_grid % 2 != 0 and x_idx % 2 != 0:
+        # LOGIC ĐỌC MAP GỐC CỦA BẠN
+        for y in range(index + 2, index + 33):
+            for x in range(0, 41):
+                symbol = data[y][x]
+                mapx_grid = x
+                mapy_grid = (y - 2 - index)
+                actual_map_x = mapx_grid * tile_size / 2
+                actual_map_y = mapy_grid * tile_size / 2
+                if mapy_grid % 2 == 0 or mapx_grid % 2 == 0:
+                    if symbol == '-' or symbol == '|':
+                        align = 0 if symbol == '-' else 1
+                        Border(self, actual_map_x, actual_map_y, tile_size, 4, black, align)
+                else:
                     tile_center_x = (mapx_grid - 1) / 2 * tile_size
                     tile_center_y = (mapy_grid - 1) / 2 * tile_size
                     if symbol == '1':
@@ -355,264 +302,361 @@ class Game:
                         if symbol == 's':
                             self.startx = tile_center_x
                             self.starty = tile_center_y
+                            self.checkx = self.startx
+                            self.checky = self.starty
                     elif symbol == '2':
                         if self.target_x is None:
                             self.target_x = tile_center_x + tile_size / 2
                             self.target_y = tile_center_y + tile_size / 2
-                elif mapy_grid % 2 == 0 or x_idx % 2 == 0:
-                    actual_map_x = mapx_grid * tile_size / 2
-                    actual_map_y = mapy_grid * tile_size / 2
-                    if symbol == '-' or symbol == '|':
-                        align = 0 if symbol == '-' else 1
-                        Border(self, actual_map_x, actual_map_y, tile_size, 4, black, align)
-        
+                            print(f"Target '2' found at coordinates: ({self.target_x}, {self.target_y})")
+
         if self.target_x is None:
+            # Thêm ký tự '2' vào map.txt nếu bạn gặp lỗi này
             print("FATAL ERROR: Target '2' not found in map file. AI has no goal.")
             self.quit()
+            return
 
-        # Create enemies
+        # TẠO KẺ ĐỊCH HARD-CODE NHƯ BAN ĐẦU
         EnemyLinear(self, 22, 4.65, 251, 220, [[251, 220], [549, 220]], blue, midnightblue)
         EnemyLinear(self, 22, 4.65, 549, 260, [[549, 260], [251, 260]], blue, midnightblue)
+        '''
         EnemyLinear(self, 22, 4.65, 251, 300, [[251, 300], [549, 300]], blue, midnightblue)
+        
         EnemyLinear(self, 22, 4.65, 549, 340, [[549, 340], [251, 340]], blue, midnightblue)
         EnemyLinear(self, 22, 4.65, 251, 380, [[251, 380], [549, 380]], blue, midnightblue)
-    
+        '''
+    # ... (tất cả các hàm còn lại của Game.py giữ nguyên như file gốc của bạn) ...
+    def create_initial_players(self):
+        self.player_list = []
+        for i in range(self.player_count):
+            player = Player(self, 'random', self.startx, self.starty, 2, 28, red, maroon)
+            self.player_list.append(player)
+        print(f"Generation {self.generation}: Created {len(self.player_list)} initial random players.")
+
+    def new_generation_players(self):
+        self.player_list = []
+        if not self.top_5_moves:
+            print(f"Warning: No best moves found from previous generation. Creating random players.")
+            self.create_initial_players()
+            return
+
+        players_per_move = self.player_count // len(self.top_5_moves)
+
+        for i in range(self.player_count):
+            move_index = min(i // players_per_move, len(self.top_5_moves) - 1)
+            inherited_moves = self.top_5_moves[move_index]
+            
+            player = Player(self, 'hybrid', self.checkx, self.checky, 2, 28, red, maroon)
+            player.inherited_moves = inherited_moves
+            self.player_list.append(player)
+            
+        print(f"Generation {self.generation}: Created {len(self.player_list)} players inheriting from top {len(self.top_5_moves)} moves.")
+
+    def end_gen(self):
+        print(f"Ending Generation {self.generation}...")
+        with open(moves_path, 'a', encoding='utf-8') as file:
+            file.write("END OF GENERATION " + str(self.generation) + "\n")
+
+        start_line_index = self.generation * (self.player_count + 1)
+        end_line_index = start_line_index + self.player_count - 1
+        
+        try:
+            python_sort(start_line_index, end_line_index)
+        except IndexError:
+            self.top_5_moves = []
+            self.best_move_for_rewind = ''
+            self.best_move_num_for_rewind = 0
+            return
+
+        with open(moves_path, 'r', encoding='utf-8') as file:
+            data = file.readlines()
+
+        num_top_moves = 5
+        top_moves_start_index = max(start_line_index, end_line_index - num_top_moves + 1)
+        top_moves_lines = data[top_moves_start_index : end_line_index + 1]
+        top_moves_lines.reverse()
+
+        self.top_5_moves = []
+        for line in top_moves_lines:
+            try:
+                moves_start_index = line.find("Moves: ")
+                if moves_start_index != -1:
+                    full_moves = line[moves_start_index + len("Moves: "):].strip()
+                    trimmed_moves = full_moves[:-10] if len(full_moves) > 10 else full_moves
+                    self.top_5_moves.append(trimmed_moves)
+            except Exception as e:
+                print(f"Error parsing a best move line: {e}")
+
+        if not self.top_5_moves:
+            print("Warning: Could not extract any best moves for the next generation.")
+            self.best_move_for_rewind = ''
+            self.best_move_num_for_rewind = 0
+        else:
+            self.best_move_for_rewind = self.top_5_moves[0]
+            self.best_move_num_for_rewind = len(self.best_move_for_rewind)
+            print(f"Extracted top {len(self.top_5_moves)} moves for next generation.")
+            print(f"Best move for rewinder has {self.best_move_num_for_rewind} steps.")
+
+        self.generation += 1
+        self.rewind = True
+        print(f"Starting Generation {self.generation} rewind phase.")
+
+        self.rewinder = Player(self, 'random', self.startx, self.starty, 2, 28, lime, black)
+        self.player_list.append(self.rewinder)
+
+        for enemy in self.enemies:
+            enemy.reset()
+
+    def run(self):
+        self.run = True
+        while self.run:
+            self.dt = self.clock.tick(FPS) / 1000
+            self.events()
+            if not self.rewind and len(self.player_list) == 0:
+                self.end_gen()
+            elif self.rewind and len(self.player_list) == 0:
+                self.rewind = False
+                self.tick = 0
+                self.new_generation_players()
+            for i in range(zoom):
+                self.update()
+            self.draw()
+
+    def update(self):
+        self.all_sprites.update()
+
     def draw_map(self):
         for y in range(0, 15):
             for x in range(0, 20):
-                fill = lavender
-                if (x + y) % 2 == 0:
-                    fill = ghostwhite
-                pygame.draw.rect(self.screen, fill, [0 + x * tile_size, 0 + y * tile_size, tile_size, tile_size])
+                fill = lavender if (x + y) % 2 != 0 else ghostwhite
+                pygame.draw.rect(self.screen, fill, [x * tile_size, y * tile_size, tile_size, tile_size])
 
-    # <<< THAY ĐỔI: Xóa tham số best_player và logic vẽ màu xanh >>>
-    def draw(self, players, generation_num, current_fitness, top_fitness):
+    def draw(self):
         self.screen.fill(black)
         self.draw_map()
-        
-        self.walls.draw(self.screen)
-        self.zones.draw(self.screen)
-        self.enemies.draw(self.screen)
+        self.all_sprites.draw(self.screen)
         for border in self.borders:
             border.draw()
-
-        # Vẽ tất cả player (màu đỏ)
-        for player in players:
-            self.screen.blit(player.image, player.rect)
-
-        # Vẽ mục tiêu cuối cùng
-        if self.target_x is not None:
-            pygame.draw.circle(self.screen, (255, 0, 0), (int(self.target_x), int(self.target_y)), 5)
-
-        # Hiển thị thông tin
         font = pygame.font.Font(None, 24)
-        text_gen = font.render(f"Generation: {generation_num}", True, black)
-        text_players = font.render(f"Players Alive: {len(players)}", True, black)
-        text_current_fit = font.render(f"Best Fitness (Gen): {current_fitness:.2f}", True, black)
-        text_top_fit = font.render(f"Best Fitness (All Time): {top_fitness:.2f}", True, black)
-
-        self.screen.blit(text_gen, (screen_width - 250, 10))
-        self.screen.blit(text_players, (screen_width - 250, 30))
-        self.screen.blit(text_current_fit, (screen_width - 250, 50))
-        self.screen.blit(text_top_fit, (screen_width - 250, 70))
-
+        text_gen = font.render(f"Generation: {self.generation}", True, black)
+        text_players = font.render(f"Players Alive: {len(self.player_list) - (1 if self.rewind else 0)}", True, black)
+        self.screen.blit(text_gen, (screen_width - 180, 10))
+        self.screen.blit(text_players, (screen_width - 180, 30))
         pygame.display.update()
+
+    def events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.quit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.quit()
 
     def quit(self):
         pygame.quit()
         sys.exit()
-    # <<< KẾT THÚC THAY ĐỔI >>>
 
 ----------------------------------------
 
 --- File: Player.py ---
-import pygame
-import math
-from settings import *
+from EnemyLinear import *
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, game, x, y, speed, size, fill, border):
-        super().__init__()
+    """
+    The player that moves to complete levels
+    """
+
+    def __init__(self, game, control, x, y, speed, size, fill, border):
+        self.groups = game.all_sprites, game.players
+        pygame.sprite.Sprite.__init__(self, self.groups)
         self.game = game
         self.image = pygame.Surface((size, size))
         self.image.fill(border)
         pygame.draw.rect(self.image, fill, [4, 4, size - 8, size - 8])
-        self.rect = self.image.get_rect(topleft=(x, y))
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
 
-        self.speed = speed
-        self.size = size
         self.vx = 0
         self.vy = 0
+        self.direction = 0
 
-        # Thuộc tính cho NEAT
-        self.net = None
-        self.genome = None
-        self.is_dead = False
-        self.time_alive = 0
-        
-        # <<< THAY ĐỔI: Các thuộc tính cho logic mới >>>
-        self.last_pos = self.rect.center
-        self.frames_in_start_zone = 0
-        
-        # 1. Lưới khám phá lãnh thổ mới
-        self.visited_grid_cells = set()
-        
-        # 2. Các tia quét và hướng di chuyển
-        self.ray_length = 200
-        self.rays = [] # Dùng để vẽ debug
-        self.last_raycast_inputs = []
-        self.last_move_direction = (0, 0) # (vx, vy)
-        # <<< KẾT THÚC THAY ĐỔI >>>
+        self.control = control
+        self.speed = speed
+        self.size = size
+        self.fill = fill
+        self.border = border
 
-    def _cast_ray(self, angle, obstacles):
-        rad_angle = math.radians(angle)
-        end_x = self.rect.centerx + self.ray_length * math.cos(rad_angle)
-        end_y = self.rect.centery + self.ray_length * math.sin(rad_angle)
+        # AI related attributes
+        self.moves = ''
+        self.changes = 0
+        self.change_limit = 70
+        self.inherited_moves = ''
+        self.current_move_index = 0
+        self.hit = False
+        self.score_calculated = False
         
-        self.rays.append(((self.rect.centerx, self.rect.centery), (end_x, end_y)))
-        
-        closest_dist = self.ray_length
-        for obs in obstacles:
-            if obs.rect.clipline((self.rect.centerx, self.rect.centery), (end_x, end_y)):
-                dist = math.hypot(obs.rect.centerx - self.rect.centerx, obs.rect.centery - self.rect.centery)
-                if dist < closest_dist:
-                    closest_dist = dist
-        
-        return closest_dist
+        # Theo dõi số frame trong vùng an toàn
+        self.safe_zone_frames = 0
 
-    def get_inputs(self):
-        inputs = []
-        self.rays = [] # Xóa các tia cũ
-        
-        target_dx = (self.game.target_x - self.rect.centerx) / screen_width
-        target_dy = (self.game.target_y - self.rect.centery) / screen_height
-        inputs.extend([target_dx, target_dy])
-        
-        ray_inputs = []
-        obstacles = self.game.walls.sprites() + self.game.enemies.sprites()
-        for angle in range(0, 360, 45):
-            dist = self._cast_ray(angle, obstacles)
-            ray_inputs.append(1.0 - (dist / self.ray_length))
-        
-        inputs.extend(ray_inputs)
-        self.last_raycast_inputs = ray_inputs
-        return inputs
+    def move(self, control):
+        if control == 'keys':
+            self.vx = 0
+            self.vy = 0
+            direction = 0
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+                self.vy = self.speed
+                direction = 5
+            if keys[pygame.K_w] or keys[pygame.K_UP]:
+                self.vy = -self.speed
+                direction = 1
+            if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+                self.vx = -self.speed
+                if direction == 5: direction = 6
+                elif direction == 1: direction = 8
+                else: direction = 7
+            if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+                self.vx = self.speed
+                if direction == 5: direction = 4
+                elif direction == 1: direction = 2
+                else: direction = 3
+            self.direction = direction
+            self.moves += str(self.direction)
 
-    def think(self):
-        inputs = self.get_inputs()
-        outputs = self.net.activate(inputs)
-        move_up = outputs[0] > 0.5
-        move_down = outputs[1] > 0.5
-        move_left = outputs[2] > 0.5
-        move_right = outputs[3] > 0.5
-        self.vx, self.vy = 0, 0
-        if move_up and not move_down: self.vy = -self.speed
-        if move_down and not move_up: self.vy = self.speed
-        if move_left and not move_right: self.vx = -self.speed
-        if move_right and not move_left: self.vx = self.speed
-        
-        # Lưu lại hướng di chuyển để tính điểm
-        self.last_move_direction = (self.vx, self.vy)
+        elif control == 'random':
+            direction = random.randint(0, 8)
+            change_chance = random.randint(0, 10)
+            
+            if change_chance == 0:
+                self.changes += 1
+                self.vx = 0
+                self.vy = 0
+                if direction in [4, 5, 6]: self.vy = self.speed
+                if direction in [8, 1, 2]: self.vy = -self.speed
+                if direction in [6, 7, 8]: self.vx = -self.speed
+                if direction in [2, 3, 4]: self.vx = self.speed
+                self.direction = direction
+            self.moves += str(self.direction)
+
+    def read_move(self, direction):
+        self.vx = 0
+        self.vy = 0
+        if direction in [4, 5, 6]: self.vy = self.speed
+        if direction in [8, 1, 2]: self.vy = -self.speed
+        if direction in [6, 7, 8]: self.vx = -self.speed
+        if direction in [2, 3, 4]: self.vx = self.speed
 
     def update(self):
-        if self.is_dead:
+        # Kiểm tra chết do đi luẩn quẩn
+        if self.control in ['random', 'hybrid'] and self.changes > self.change_limit:
+            self.end_moves(cause_of_death='wander_death')
             return
 
-        self.think()
-        
+        # Logic di chuyển
+        if self.game.rewind:
+            if self.fill == lime:
+                if self.game.tick < self.game.best_move_num_for_rewind:
+                    self.read_move(int(self.game.best_move_for_rewind[self.game.tick]))
+                    self.game.tick += 1
+                else:
+                    self.game.rewind = False
+                    self.game.tick = 0
+                    self.game.checkx = self.rect.x
+                    self.game.checky = self.rect.y
+                    self.game.new_generation_players()
+                    self.die()
+                    return
+        else:
+            if self.control == 'hybrid':
+                if self.current_move_index < len(self.inherited_moves):
+                    direction = int(self.inherited_moves[self.current_move_index])
+                    self.read_move(direction)
+                    self.current_move_index += 1
+                    self.moves += str(direction)
+                else:
+                    self.move('random')
+            elif self.control == 'random':
+                self.move('random')
+
+        # Áp dụng di chuyển và va chạm tường
         self.rect.x += self.vx
         self.wall_collision('x')
         self.rect.y += self.vy
         self.wall_collision('y')
-        
-        self.time_alive += 1
 
-        # <<< THAY ĐỔI: Cập nhật fitness liên tục trong mỗi frame >>>
-        self.update_fitness()
-        # <<< KẾT THÚC THAY ĐỔI >>>
-
-        # Kiểm tra va chạm kẻ thù
-        if pygame.sprite.spritecollide(self, self.game.enemies, False):
-            self.genome.fitness -= ENEMY_HIT_PENALTY
-            self.is_dead = True
-        
-        # Kiểm tra thắng
-        zones_hit = pygame.sprite.spritecollide(self, self.game.zones, False)
-        for zone in zones_hit:
-            if zone.type == 'j':
-                self.genome.fitness += WIN_REWARD
-                self.is_dead = True
-                return
-
-    def update_fitness(self):
-        """
-        Hàm này được gọi MỖI FRAME để cập nhật fitness một cách liên tục.
-        """
-        # 1. Phạt khi đứng yên
-        if self.rect.center == self.last_pos:
-            self.genome.fitness -= STAGNATION_PENALTY_WEIGHT
-        self.last_pos = self.rect.center
-
-        # 2. Thưởng khi khám phá ô mới
-        grid_x = int(self.rect.centerx / tile_size)
-        grid_y = int(self.rect.centery / tile_size)
-        current_cell = (grid_x, grid_y)
-        if current_cell not in self.visited_grid_cells:
-            self.visited_grid_cells.add(current_cell)
-            self.genome.fitness += NEW_GRID_CELL_REWARD
-
-        # 3. Thưởng khi đi vào không gian mở
-        # Chỉ quét tường để tìm không gian mở
-        wall_obstacles = self.game.walls.sprites()
-        wall_ray_distances = [self._cast_ray(angle, wall_obstacles) for angle in range(0, 360, 45)]
-        
-        if wall_ray_distances:
-            longest_ray_dist = max(wall_ray_distances)
-            longest_ray_index = wall_ray_distances.index(longest_ray_dist)
+        # Logic phạt và kiểm tra thắng
+        if not self.game.rewind:
+            zones_hit = pygame.sprite.spritecollide(self, self.game.zones, False)
+            in_safe_zone = False
+            for zone in zones_hit:
+                if zone.type == 'j':
+                    self.end_moves(cause_of_death='win')
+                    return
+                if zone.type in ['s', 'g', 'h']:
+                    in_safe_zone = True
             
-            # Tính vector của tia dài nhất
-            angle = longest_ray_index * 45
-            rad_angle = math.radians(angle)
-            open_space_vector = (math.cos(rad_angle), math.sin(rad_angle))
-            
-            # Tính tích vô hướng để xem hướng di chuyển có "cùng chiều" với không gian mở không
-            move_vector = self.last_move_direction
-            if move_vector != (0, 0):
-                # Chuẩn hóa vector di chuyển
-                move_magnitude = math.hypot(move_vector[0], move_vector[1])
-                normalized_move = (move_vector[0] / move_magnitude, move_vector[1] / move_magnitude)
-                
-                # Tích vô hướng (dot product)
-                dot_product = open_space_vector[0] * normalized_move[0] + open_space_vector[1] * normalized_move[1]
-                
-                # Nếu tích vô hướng > 0, nghĩa là đang đi cùng chiều
-                if dot_product > 0:
-                    reward = dot_product * (longest_ray_dist / self.ray_length) * OPEN_SPACE_REWARD_WEIGHT
-                    self.genome.fitness += reward
+            if in_safe_zone:
+                self.safe_zone_frames += 1
 
-        # 4. Phạt khi ở trong vùng xuất phát
-        is_in_start_zone = False
-        zones_hit = pygame.sprite.spritecollide(self, self.game.zones, False)
-        for zone in zones_hit:
-            if zone.type in ['s', 'g']:
-                is_in_start_zone = True
-                break
-        if is_in_start_zone:
-            self.genome.fitness -= START_ZONE_PENALTY_WEIGHT
+        # Kiểm tra va chạm enemy
+        self.enemy_collision()
 
     def wall_collision(self, direction):
         if direction == 'x':
-            hits = pygame.sprite.spritecollide(self, self.game.walls, False)
-            if hits:
-                if self.vx > 0: self.rect.right = hits[0].rect.left
-                if self.vx < 0: self.rect.left = hits[0].rect.right
+            wall_hit = pygame.sprite.spritecollide(self, self.game.walls, False)
+            if wall_hit:
+                if self.vx > 0: self.rect.right = wall_hit[0].rect.left
+                if self.vx < 0: self.rect.left = wall_hit[0].rect.right
                 self.vx = 0
         if direction == 'y':
-            hits = pygame.sprite.spritecollide(self, self.game.walls, False)
-            if hits:
-                if self.vy > 0: self.rect.bottom = hits[0].rect.top
-                if self.vy < 0: self.rect.top = hits[0].rect.bottom
+            wall_hit = pygame.sprite.spritecollide(self, self.game.walls, False)
+            if wall_hit:
+                if self.vy > 0: self.rect.bottom = wall_hit[0].rect.top
+                if self.vy < 0: self.rect.top = wall_hit[0].rect.bottom
                 self.vy = 0
+
+    def enemy_collision(self):
+        enemy_hit = pygame.sprite.spritecollide(self, self.game.enemies, False)
+        if enemy_hit:
+            self.hit = True
+            self.end_moves(cause_of_death='enemy_hit')
+
+    def respawn(self):
+        self.rect.x = self.game.startx
+        self.rect.y = self.game.starty
+        self.vx = 0
+        self.vy = 0
+        self.moves = ''
+        self.changes = 0
+        self.hit = False
+        self.score_calculated = False
+        self.safe_zone_frames = 0
+
+    def die(self):
+        self.game.all_sprites.remove(self)
+        self.game.players.remove(self)
+        if self in self.game.player_list:
+            self.game.player_list.remove(self)
+
+    def end_moves(self, cause_of_death):
+        if self.score_calculated:
+            return
+        self.score_calculated = True
+
+        score = calculate_final_score(self.game, self, cause_of_death)
+
+        with open(moves_path, 'a') as file:
+            file.write(f"Score: {score} Moves: {self.moves}\n")
+        
+        # <<< THAY ĐỔI: XỬ LÝ KHI CHIẾN THẮNG >>>
+        if cause_of_death == 'win':
+            print(f"AI Successfully Completed Level {self.game.level}!")
+            self.game.handle_win(self.moves) # Gọi hàm xử lý chiến thắng
+            self.game.run = False
+        # <<< KẾT THÚC THAY ĐỔI >>>
+
+        self.die()
 
 ----------------------------------------
 
@@ -702,18 +746,123 @@ class Wall(pygame.sprite.Sprite):
 
 ----------------------------------------
 
---- File: functions.py ---
-# File: functions.py
+--- File: beat.py ---
+import pygame
+import sys
+from Game import Game
+from Player import Player
+from settings import *
+import random
+# This standalone file reads the last solution from archive.txt and replays it.
 
+def get_last_solution_from_archive():
+    """
+    Reads archive.txt and returns the last recorded move sequence.
+    """
+    try:
+        with open(archive_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        
+        for i in range(len(lines) - 1, -1, -1):
+            line = lines[i].strip()
+            if line.isdigit():
+                print(f"Found solution with {len(line)} moves in archive.txt")
+                return line
+        
+        print("Error: No valid move sequence found in archive.txt")
+        return None
+    except FileNotFoundError:
+        print(f"Error: archive.txt not found at {archive_path}")
+        return None
+    except Exception as e:
+        print(f"An error occurred while reading archive.txt: {e}")
+        return None
+
+def run_replay(moves, level):
+    """
+    Initializes a game and replays the provided moves.
+    """
+    if not moves:
+        print("Cannot start replay without a move sequence.")
+        return
+
+    pygame.init()
+    game = Game()
+    game.new(level)
+
+    player = Player(game, 'replay', game.startx, game.starty, 2, 28, lime, black)
+    
+    for p in game.player_list:
+        p.die()
+    game.player_list = [player]
+    
+    clock = pygame.time.Clock()
+    running = True
+    move_index = 0
+    
+    print("--- Starting Replay ---")
+    
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    running = False
+
+        # <<< PHẦN CẬP NHẬT QUAN TRỌNG >>>
+        # Vòng lặp này đảm bảo replay chạy ở cùng tốc độ logic với training
+        for _ in range(zoom):
+            # Nạp một bước đi cho mỗi lần cập nhật logic
+            if move_index < len(moves):
+                direction = int(moves[move_index])
+                player.read_move(direction)
+                move_index += 1
+            else:
+                # Khi hết bước đi, giữ người chơi đứng yên
+                player.read_move(0) 
+
+            # Cập nhật logic game
+            game.all_sprites.update()
+        # <<< KẾT THÚC CẬP NHẬT >>>
+
+        # Vẽ mọi thứ ra màn hình (chỉ 1 lần sau khi đã cập nhật logic 'zoom' lần)
+        game.draw()
+        
+        # Hiển thị thông tin replay
+        font = pygame.font.Font(None, 28)
+        text_replay = font.render("REPLAY MODE", True, red)
+        text_step = font.render(f"Step: {move_index}/{len(moves)}", True, black)
+        game.screen.blit(text_replay, (10, 10))
+        game.screen.blit(text_step, (10, 40))
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+    print("--- Replay Finished ---")
+    pygame.quit()
+    sys.exit()
+
+if __name__ == "__main__":
+    random.seed(42)
+    LEVEL_TO_BEAT = 1 
+    winning_moves = get_last_solution_from_archive()
+    run_replay(winning_moves, LEVEL_TO_BEAT)
+
+----------------------------------------
+
+--- File: functions.py ---
 from settings import *
 import os
+import time
 
 def python_sort(start, end):
     """
-    Sorts the moves file from lowest to highest score with python's built in sort.
+    Sorts the moves file from lowest to highest score using Python's built-in sort.
     """
     start_time = time.time()
-    with open(moves_path, 'r') as file:
+    # THÊM encoding='utf-8'
+    with open(moves_path, 'r', encoding='utf-8') as file:
         data = file.readlines()
     cluster_lines = data[start : end + 1]
 
@@ -729,29 +878,21 @@ def python_sort(start, end):
     cluster_lines.sort(key=get_score_from_line)
 
     data[start : end + 1] = cluster_lines
-    with open(moves_path, 'w') as file:
+    # THÊM encoding='utf-8'
+    with open(moves_path, 'w', encoding='utf-8') as file:
         file.writelines(data)
 
 def calculate_final_score(game, player, cause_of_death):
     """
-    Tính điểm cuối cùng cho một player dựa trên công thức mới.
-    Score = (1/distance) - penalties
+    Calculates the final score for a player based on the new formula.
     """
-    # 1. Tính khoảng cách đến mục tiêu
     player_center_x = player.rect.x + player.size / 2
     player_center_y = player.rect.y + player.size / 2
-    
     distance_to_target = math.hypot(game.target_x - player_center_x, game.target_y - player_center_y)
-
-    # 2. Tính phần thưởng chính (1 / khoảng cách)
-    # Thêm 1.0 vào mẫu số để tránh lỗi chia cho 0 và giữ cho điểm không quá lớn
     reward = 150000.0 / (distance_to_target + 1.0)
     
-    # 3. Tính toán các hình phạt
     safe_zone_penalty = player.safe_zone_frames * SAFE_ZONE_PENALTY_WEIGHT
     move_penalty = len(player.moves) * MOVE_PENALTY_WEIGHT
-    
-    # 4. Áp dụng hình phạt dựa trên nguyên nhân chết
     final_score = reward - safe_zone_penalty - move_penalty
     
     if cause_of_death == 'enemy_hit':
@@ -761,121 +902,191 @@ def calculate_final_score(game, player, cause_of_death):
     elif cause_of_death == 'win':
         final_score += WIN_REWARD
 
-    # In thông tin debug để kiểm tra
-    print(f"--- Score Calculation (Gen {game.generation}) ---")
-    print(f"  Cause of Death: {cause_of_death}")
-    print(f"  Distance to Target: {distance_to_target:.2f}")
-    print(f"  Base Reward (1/dist): {reward:.4f}")
-    print(f"  Safe Zone Penalty: -{safe_zone_penalty:.2f} ({player.safe_zone_frames} frames)")
-    print(f"  Move Penalty: -{move_penalty:.2f} ({len(player.moves)} moves)")
-    print(f"  Final Score: {final_score:.4f}")
-    print(f"-------------------------")
-
     return format(final_score, '.5f')
 
 def clear_moves():
     """
-    Clears all contents from the moves file
+    Clears all content from the moves file.
     """
     moves_dir = os.path.dirname(moves_path)
     if not os.path.exists(moves_dir):
         os.makedirs(moves_dir)
 
-    open(moves_path, 'w').close()
+    # THÊM encoding='utf-8'
+    open(moves_path, 'w', encoding='utf-8').close()
     print(f"Cleared previous moves data from: {moves_path}")
+
+from settings import *
+import os
+import time
+
+def python_sort(start, end):
+    """
+    Sorts the moves file from lowest to highest score using Python's built-in sort.
+    """
+    start_time = time.time()
+    with open(moves_path, 'r', encoding='utf-8') as file:
+        data = file.readlines()
+    cluster_lines = data[start : end + 1]
+
+    def get_score_from_line(line):
+        try:
+            start_index = line.find("Score: ") + 7
+            end_index = line.find(" Moves:")
+            score_str = line[start_index:end_index].strip()
+            return float(score_str)
+        except (ValueError, IndexError):
+            return -float('inf')
+
+    cluster_lines.sort(key=get_score_from_line)
+
+    data[start : end + 1] = cluster_lines
+    with open(moves_path, 'w', encoding='utf-8') as file:
+        file.writelines(data)
+
+def calculate_final_score(game, player, cause_of_death):
+    """
+    Calculates the final score for a player based on the new formula.
+    """
+    player_center_x = player.rect.x + player.size / 2
+    player_center_y = player.rect.y + player.size / 2
+    distance_to_target = math.hypot(game.target_x - player_center_x, game.target_y - player_center_y)
+    reward = (distance_to_target + 1.0)*10000
+    
+    safe_zone_penalty = player.safe_zone_frames * SAFE_ZONE_PENALTY_WEIGHT
+    move_penalty = len(player.moves) * MOVE_PENALTY_WEIGHT
+    final_score =  - safe_zone_penalty - move_penalty - reward
+    
+    if cause_of_death == 'enemy_hit':
+        final_score -= ENEMY_HIT_PENALTY
+    elif cause_of_death == 'wander_death':
+        final_score -= WANDER_DEATH_PENALTY
+    elif cause_of_death == 'win':
+        final_score += WIN_REWARD
+
+    return format(final_score, '.5f')
+
+def clear_moves():
+    """
+    Clears all content from the moves file.
+    """
+    moves_dir = os.path.dirname(moves_path)
+    if not os.path.exists(moves_dir):
+        os.makedirs(moves_dir)
+
+    open(moves_path, 'w', encoding='utf-8').close()
+    print(f"Cleared previous moves data from: {moves_path}")
+
+# <<< HÀM MỚI >>>
+def clear_archive():
+    """
+    Clears all content from the archive file to ensure a clean run.
+    """
+    # Đảm bảo file tồn tại trước khi xóa nội dung
+    try:
+        open(archive_path, 'w', encoding='utf-8').close()
+        print(f"Cleared previous archive data from: {archive_path}")
+    except Exception as e:
+        print(f"Could not clear archive file (it might not exist yet): {e}")
 
 ----------------------------------------
 
 --- File: main.py ---
-# File: main.py
-
-import pygame
-import neat
 import os
-import sys
+import argparse
+# import tkinter as tk # Not needed for AI training run
+# from tkinter import filedialog # Not needed for AI training run
+
+# Import your game components
 from Game import Game
-from Player import Player
+from functions import * # Make sure these are properly imported
 from settings import *
+# This main.py is specifically for running the AI training.
+# The original main.py to generate summary.txt should be kept separate or renamed.
 
-# --- Các hằng số cho việc huấn luyện ---
-GENERATION = 0
-MAX_FRAMES_PER_GEN = 6000
-HIGHEST_FITNESS_SO_FAR = -float('inf')
-
-def eval_genomes(genomes, config):
-    global GENERATION, HIGHEST_FITNESS_SO_FAR
-    GENERATION += 1
-    game = Game()
-    game.new(1)
-    players = []
-    for genome_id, genome in genomes:
-        genome.fitness = 0
-        net = neat.nn.FeedForwardNetwork.create(genome, config)
-        player = Player(game, game.startx, game.starty, 2, 28, red, maroon)
-        player.net = net
-        player.genome = genome
-        players.append(player)
-    
-    clock = pygame.time.Clock()
-    frame_count = 0
-    run = True
-    while run and len(players) > 0:
-        frame_count += 1
-        if frame_count > MAX_FRAMES_PER_GEN:
-            for player in players:
-                player.is_dead = True
-            run = False
-        
-        if DRAW_SCREEN:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-
-        # Cập nhật game
-        for player in players:
-            player.update()
-        game.enemies.update()
-
-        # Tìm fitness cao nhất và loại bỏ player đã chết
-        current_best_fitness = -float('inf')
-        for i in range(len(players) - 1, -1, -1):
-            player = players[i]
-            if player.genome.fitness > current_best_fitness:
-                current_best_fitness = player.genome.fitness
-            if player.is_dead:
-                players.pop(i)
-        
-        if current_best_fitness > HIGHEST_FITNESS_SO_FAR:
-            HIGHEST_FITNESS_SO_FAR = current_best_fitness
-
-        # <<< THAY ĐỔI: Áp dụng Frame Skipping và xóa tham số best_player >>>
-        if DRAW_SCREEN and frame_count % FRAME_SKIP == 0:
-            game.draw(players, GENERATION, current_best_fitness, HIGHEST_FITNESS_SO_FAR)
-            clock.tick(FPS)
-        # <<< KẾT THÚC THAY ĐỔI >>>
-
-def run_neat(config_path):
-    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
-                                neat.DefaultSpeciesSet, neat.DefaultStagnation,
-                                config_path)
-    p = neat.Population(config)
-    p.add_reporter(neat.StdOutReporter(True))
-    stats = neat.StatisticsReporter()
-    p.add_reporter(stats)
-    winner = p.run(eval_genomes, 50)
-    print('\nBest genome:\n{!s}'.format(winner))
+# Define paths (ensure these match settings.py or are consistent)
+# These should ideally be read from settings.py or passed through a config
+# For simplicity, if settings.py already defines them, we don't need to redefine here
+# Assuming settings.py is correctly setting map_path and moves_path
 
 if __name__ == "__main__":
-    local_dir = os.path.dirname(__file__)
-    config_path = os.path.join(local_dir, 'config-feedforward.txt')
-    run_neat(config_path)
+    random.seed(12345)
+    print("Clearing previous moves data...")
+    clear_moves()
+    clear_archive()
+    # Create an instance of the game
+    game = Game()
+    
+    # Initialize the game with level 1
+    # This will load the map, create enemies, etc.
+    game.new(1) # Assuming you want to train on Level 1
+
+    # Create the initial generation of players
+    game.create_initial_players()
+
+    # Start the game loop
+    print(f"Starting AI training for 'Game khó nhất thế giới' on Level {game.level}...")
+    game.run()
+
+    print("AI training finished.")
+    # You might want to print the final best_moves here or load it from moves.txt
+    if game.run == False:
+        print(f"Level was passed after {game.generation} generations!")
+    else:
+        print(f"Game ended after {game.generation} generations.")
+    
+    # Optionally, read and print the overall best move from the last generation
+    try:
+        # THÊM encoding='utf-8'
+        with open(moves_path, 'r', encoding='utf-8') as file:
+            data = file.readlines()
+            if data:
+                # Find the last "END OF GENERATION" marker
+                last_gen_end_index = -1
+                for i in range(len(data) - 1, -1, -1):
+                    if "END OF GENERATION" in data[i]:
+                        last_gen_end_index = i
+                        break
+                
+                if last_gen_end_index != -1:
+                    # The sorted block for the last generation is *before* this marker
+                    # The best move will be the last line of the sorted block
+                    # Need to infer start_line_index for the *last completed* generation
+                    # which is game.generation - 1
+                    
+                    # Assuming the last recorded generation is game.generation - 1
+                    # and it has (player_count + 1) lines per block.
+                    # Best move is at start_line_index + player_count - 1
+                    
+                    last_completed_gen_idx = game.generation - 1
+                    if last_completed_gen_idx >= 0:
+                        start_line_of_last_gen_moves = last_completed_gen_idx * (game.player_count + 1)
+                        best_move_line_idx = start_line_of_last_gen_moves + game.player_count - 1
+                        
+                        if best_move_line_idx < len(data):
+                            best_move_line = data[best_move_line_idx]
+                            moves_start_index = best_move_line.find("Moves: ")
+                            if moves_start_index != -1:
+                                final_best_moves = best_move_line[moves_start_index + len("Moves: "):].strip()
+                                print(f"\nOverall best moves found: {final_best_moves}")
+                            else:
+                                print("\nCould not find 'Moves:' in the overall best move line.")
+                        else:
+                            print("\nNo recorded best moves for the last completed generation.")
+                    else:
+                        print("\nNo generations completed yet.")
+                else:
+                    print("\nNo 'END OF GENERATION' markers found in moves.txt.")
+            else:
+                print("\nmoves.txt is empty.")
+    except FileNotFoundError:
+        print(f"moves.txt not found at {moves_path}")
+    except Exception as e:
+        print(f"Error reading moves.txt for final best move: {e}")
 
 ----------------------------------------
 
 --- File: settings.py ---
-# File: settings.py
-
 import pygame
 import time
 import sys
@@ -884,40 +1095,35 @@ import math
 
 pygame.init()
 
-# Kích thước màn hình và tile
+# size of the square tiles that make up the map
 tile_size = 40
 screen_width = tile_size * 20
 screen_height = tile_size * 15
 
-# Đường dẫn file map
+# true if the game is running
+run = True
+
+# File path for data files
 map_path = r"D:\Game-Bot\map.txt"
+moves_path = r"D:\Game-Bot\moves.txt"
+archive_path = r"D:\Game-Bot\archive.txt" # <<< DÒNG MỚI
 
-# Cài đặt game
+# Game settings
 FPS = 60
-Title = "NEAT Game Bot"
-DRAW_SCREEN = True
-FRAME_SKIP = 3
+zoom = 1
+Title = "Hùng Ngu"
 
-# --- CÁC TRỌNG SỐ VÀ PHẦN THƯỞNG ---
+
+# Trọng số phạt cho mỗi frame ở trong vùng an toàn (g, s, h)
+SAFE_ZONE_PENALTY_WEIGHT = 2.0
+# Trọng số phạt cho mỗi bước di chuyển
+MOVE_PENALTY_WEIGHT = 0.5
+# Điểm phạt khi va chạm kẻ thù
+ENEMY_HIT_PENALTY = 0.0
+# Điểm phạt khi đi luẩn quẩn đến chết (nặng hơn va chạm enemy)
+WANDER_DEATH_PENALTY = 400.0
+# Điểm thưởng cực lớn khi chiến thắng
 WIN_REWARD = 10000.0
-ENEMY_HIT_PENALTY = 50.0
-START_ZONE_PENALTY_WEIGHT = 0.8 
-
-# <<< CÁC BIẾN BỊ THIẾU ĐÃ ĐƯỢC THÊM LẠI ĐẦY ĐỦ >>>
-
-# Phạt khi đứng yên (thay vì chết)
-STAGNATION_PENALTY_WEIGHT = 0.1
-
-# Thưởng khi khám phá ô mới trên bản đồ
-NEW_GRID_CELL_REWARD = 10.0
-
-# Thưởng khi đi theo hướng có không gian mở
-OPEN_SPACE_REWARD_WEIGHT = 0.5
-
-# <<< KẾT THÚC PHẦN THÊM VÀO >>>
-
-# Ngưỡng thời gian để coi là trì trệ (không còn dùng để giết player)
-STAGNATION_THRESHOLD = 180
 # ---------------------------------------------------------
 
 # Colors

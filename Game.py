@@ -1,259 +1,93 @@
-from Player import * # Make sure Player imports EnemyLinear, Wall, SafeZone, Border, functions, settings
+import pygame, sys
+from settings import *
+from Wall import Wall
+from Border import Border
+from SafeZone import Zone
+from EnemyLinear import EnemyLinear
+from Player import Player
 
 class Game:
-    """
-    The game and functions for setting up
-    """
-
-    def __init__(self):
-        """
-        Constructor to build a new Game
-        """
-        pygame.init()
-        self.screen = pygame.display.set_mode((screen_width, screen_height))
-        pygame.display.set_caption(Title)
+    def __init__(self, headless=False):
+        self.headless = headless
+        if not self.headless:
+            pygame.init()
+            self.screen = pygame.display.set_mode((screen_width, screen_height))
+            pygame.display.set_caption(Title)
+            self.font = pygame.font.Font(None, 24)
         self.clock = pygame.time.Clock()
-        pygame.key.set_repeat(1, 1)
-        self.tick = 0
-        self.player_count = 1000
-
-    def new(self, level):
-        """
-        Reads from the map file and creates all objects relating to the map
-        """
-        # Sprite groups
+        
+    def _load_map_data(self, level):
         self.all_sprites = pygame.sprite.Group()
-        self.players = pygame.sprite.Group()
-        self.player_list = []
         self.walls = pygame.sprite.Group()
         self.zones = pygame.sprite.Group()
         self.borders = pygame.sprite.Group()
         self.enemies = pygame.sprite.Group()
-
-        # Game state attributes
-        self.startx = 0
-        self.starty = 0
-        self.checkx = 0
-        self.checky = 0
+        self.players = pygame.sprite.Group()
+        self.startx, self.starty, self.target_x, self.target_y = 0, 0, None, None
         self.level = level
-        self.target_x = None
-        self.target_y = None
-
-        # <<< THAY ĐỔI: Lưu trữ top 5 moves thay vì chỉ 1 >>>
-        self.top_5_moves = []
-        # Thuộc tính này vẫn giữ lại để điều khiển rewinder
-        self.best_move_for_rewind = ''
-        self.best_move_num_for_rewind = 0
-        # <<< KẾT THÚC THAY ĐỔI >>>
-        
-        self.generation = 0
-        self.rewind = False
-
-        # Map maker
         try:
-            with open(map_path, 'r') as file:
-                data = file.readlines()
-        except FileNotFoundError:
-            print(f"Error: map file not found at {map_path}")
-            self.quit()
-            return
-
-        try:
-            index = data.index(">>>>>>>>>>>>>>>> Level " + str(self.level) + "\n")
-        except ValueError:
-            print(f"Error: Level {self.level} not found in map file.")
-            self.quit()
-            return
-
-        # Đọc map layout
-        for y in range(index + 2, index + 33):
-            for x in range(0, 41):
-                symbol = data[y][x]
-                mapx_grid = x
-                mapy_grid = (y - 2 - index)
-                actual_map_x = mapx_grid * tile_size / 2
-                actual_map_y = mapy_grid * tile_size / 2
-                if mapy_grid % 2 == 0 or mapx_grid % 2 == 0:
-                    if symbol == '-' or symbol == '|':
-                        align = 0 if symbol == '-' else 1
-                        Border(self, actual_map_x, actual_map_y, tile_size, 4, black, align)
-                else:
-                    tile_center_x = (mapx_grid - 1) / 2 * tile_size
-                    tile_center_y = (mapy_grid - 1) / 2 * tile_size
-                    if symbol == '1':
-                        Wall(self, tile_center_x, tile_center_y, tile_size, lightsteelblue)
-                    elif symbol in ['g', 'h', 'j', 's']:
-                        Zone(self, tile_center_x, tile_center_y, tile_size, palegreen, symbol)
-                        if symbol == 's':
-                            self.startx = tile_center_x
-                            self.starty = tile_center_y
-                            self.checkx = self.startx
-                            self.checky = self.starty
-                    elif symbol == '2':
-                        if self.target_x is None:
-                            self.target_x = tile_center_x + tile_size / 2
-                            self.target_y = tile_center_y + tile_size / 2
-                            print(f"Target '2' found at coordinates: ({self.target_x}, {self.target_y})")
-
-        if self.target_x is None:
-            print("FATAL ERROR: Target '2' not found in map file. AI has no goal.")
-            self.quit()
-            return
-
-        # Create enemies
+            with open(map_path, 'r', encoding='utf-8') as f: data = f.readlines()
+            level_header = f"Level {self.level}"; index = [i for i, line in enumerate(data) if level_header in line][0]
+            for y in range(index + 2, index + 33):
+                for x in range(0, 41):
+                    symbol = data[y][x]; mapx_grid = x; mapy_grid = (y - 2 - index)
+                    actual_map_x = mapx_grid * tile_size / 2; actual_map_y = mapy_grid * tile_size / 2
+                    if mapy_grid % 2 == 0 or mapx_grid % 2 == 0:
+                        if symbol in ['-', '|']: Border(self, actual_map_x, actual_map_y, tile_size, 4, black, 0 if symbol == '-' else 1)
+                    else:
+                        tile_center_x = (mapx_grid - 1) / 2 * tile_size; tile_center_y = (mapy_grid - 1) / 2 * tile_size
+                        if symbol == '1': Wall(self, tile_center_x, tile_center_y, tile_size, lightsteelblue)
+                        elif symbol in ['g', 'h', 'j', 's']:
+                            Zone(self, tile_center_x, tile_center_y, tile_size, palegreen, symbol)
+                            if symbol == 's': self.startx, self.starty = tile_center_x, tile_center_y
+                        elif symbol == '2':
+                            if self.target_x is None: self.target_x, self.target_y = tile_center_x + tile_size / 2, tile_center_y + tile_size / 2
+        except Exception as e: print(f"Lỗi tải map: {e}"); self.quit()
+        if self.target_x is None: print("LỖI: Không tìm thấy mục tiêu '2'."); self.quit()
         
         EnemyLinear(self, 22, 4.65, 251, 220, [[251, 220], [549, 220]], blue, midnightblue)
         EnemyLinear(self, 22, 4.65, 549, 260, [[549, 260], [251, 260]], blue, midnightblue)
         EnemyLinear(self, 22, 4.65, 251, 300, [[251, 300], [549, 300]], blue, midnightblue)
-        '''
         EnemyLinear(self, 22, 4.65, 549, 340, [[549, 340], [251, 340]], blue, midnightblue)
         EnemyLinear(self, 22, 4.65, 251, 380, [[251, 380], [549, 380]], blue, midnightblue)
-        '''
-    def create_initial_players(self):
-        self.player_list = []
-        for i in range(self.player_count):
-            player = Player(self, 'random', self.startx, self.starty, 2, 28, red, maroon)
-            self.player_list.append(player)
-        print(f"Generation {self.generation}: Created {len(self.player_list)} initial random players.")
 
-    def new_generation_players(self):
-        """
-        <<< THAY ĐỔI: Tạo thế hệ mới dựa trên top 5 moves >>>
-        """
-        self.player_list = []
-        if not self.top_5_moves:
-            print(f"Warning: No best moves found from previous generation. Creating random players.")
-            self.create_initial_players()
-            return
+    def reset(self, level):
+        self._load_map_data(level)
+        player = Player(self, self.startx, self.starty, 2, 28, red, maroon, "", 0)
+        return player
 
-        players_per_move = self.player_count // len(self.top_5_moves)
+    def step(self, player, action):
+        self.enemies.update()
+        player.update_single_step(action)
+        if pygame.sprite.spritecollide(player, self.enemies, False):
+            return True, 'enemy_hit'
+        zones_hit = pygame.sprite.spritecollide(player, self.zones, False)
+        if zones_hit:
+            player.safe_zone_frames += 1
+            for zone in zones_hit:
+                if zone.type == 'j':
+                    return True, 'win'
+        return False, ''
 
-        for i in range(self.player_count):
-            # Chọn move string dựa trên index của player
-            move_index = min(i // players_per_move, len(self.top_5_moves) - 1)
-            inherited_moves = self.top_5_moves[move_index]
-            
-            player = Player(self, 'hybrid', self.checkx, self.checky, 2, 28, red, maroon)
-            player.inherited_moves = inherited_moves
-            self.player_list.append(player)
-            
-        print(f"Generation {self.generation}: Created {len(self.player_list)} players inheriting from top {len(self.top_5_moves)} moves.")
+    # <<< SỬA LỖI: Đồng bộ hàm này với cấu trúc dữ liệu mới >>>
+    def reset_for_population(self, level, population_moves, change_limit):
+        self._load_map_data(level)
+        # population_moves giờ là một danh sách các chuỗi
+        for moves in population_moves:
+            # Gọi Player constructor với đúng các tham số
+            Player(self, self.startx, self.starty, 2, 28, red, maroon, moves, change_limit)
+        return list(self.players)
 
-    def end_gen(self):
-        """
-        <<< THAY ĐỔI: Tìm top 5 moves và cắt 5 bước cuối >>>
-        """
-        print(f"Ending Generation {self.generation}...")
-        with open(moves_path, 'a') as file:
-            file.write("END OF GENERATION " + str(self.generation) + "\n")
-
-        start_line_index = self.generation * (self.player_count + 1)
-        end_line_index = start_line_index + self.player_count - 1
-        
-        try:
-            python_sort(start_line_index, end_line_index)
-        except IndexError:
-            # Xử lý lỗi nếu không đủ dữ liệu để sort
-            self.top_5_moves = []
-            self.best_move_for_rewind = ''
-            self.best_move_num_for_rewind = 0
-            # ... (phần còn lại của xử lý lỗi giữ nguyên)
-            return
-
-        with open(moves_path, 'r') as file:
-            data = file.readlines()
-
-        # Lấy 5 dòng cuối cùng của cluster đã sort
-        num_top_moves = 5
-        top_moves_start_index = max(start_line_index, end_line_index - num_top_moves + 1)
-        top_moves_lines = data[top_moves_start_index : end_line_index + 1]
-        top_moves_lines.reverse() # Đảo ngược để dòng tốt nhất ở index 0
-
-        self.top_5_moves = []
-        for line in top_moves_lines:
-            try:
-                moves_start_index = line.find("Moves: ")
-                if moves_start_index != -1:
-                    full_moves = line[moves_start_index + len("Moves: "):].strip()
-                    
-                    # Cắt 10 bước cuối
-                    if len(full_moves) > 10:
-                        trimmed_moves = full_moves[:-10]
-                    else:
-                        trimmed_moves = full_moves
-                    
-                    self.top_5_moves.append(trimmed_moves)
-            except Exception as e:
-                print(f"Error parsing a best move line: {e}")
-
-        if not self.top_5_moves:
-            print("Warning: Could not extract any best moves for the next generation.")
-            self.best_move_for_rewind = ''
-            self.best_move_num_for_rewind = 0
-        else:
-            # Move tốt nhất cho rewinder là move đầu tiên trong danh sách
-            self.best_move_for_rewind = self.top_5_moves[0]
-            self.best_move_num_for_rewind = len(self.best_move_for_rewind)
-            print(f"Extracted top {len(self.top_5_moves)} moves for next generation.")
-            print(f"Best move for rewinder has {self.best_move_num_for_rewind} steps.")
-
-        self.generation += 1
-        self.rewind = True
-        print(f"Starting Generation {self.generation} rewind phase.")
-
-        self.rewinder = Player(self, 'random', self.startx, self.starty, 2, 28, lime, black)
-        self.player_list.append(self.rewinder)
-
-        for enemy in self.enemies:
-            enemy.reset()
-
-    def run(self):
-        self.run = True
-        while self.run:
-            self.dt = self.clock.tick(FPS) / 1000
-            self.events()
-            if not self.rewind and len(self.player_list) == 0:
-                self.end_gen()
-            elif self.rewind and len(self.player_list) == 0:
-                 self.rewind = False
-                 self.tick = 0
-                 self.new_generation_players()
-            for i in range(zoom):
-                self.update()
-            self.draw()
-
-    def update(self):
-        self.all_sprites.update()
-
-    def draw_map(self):
-        for y in range(0, 15):
-            for x in range(0, 20):
-                fill = lavender
-                if (x + y) % 2 == 0:
-                    fill = ghostwhite
-                pygame.draw.rect(self.screen, fill, [0 + x * tile_size, 0 + y * tile_size, tile_size, tile_size])
-
-    def draw(self):
+    def draw(self, additional_texts=[]):
+        if self.headless: return
         self.screen.fill(black)
-        self.draw_map()
+        for y in range(0, 15):
+            for x in range(0, 20): pygame.draw.rect(self.screen, lavender if (x + y) % 2 != 0 else ghostwhite, [x * tile_size, y * tile_size, tile_size, tile_size])
         self.all_sprites.draw(self.screen)
-        for border in self.borders:
-            border.draw()
-        font = pygame.font.Font(None, 24)
-        text_gen = font.render(f"Generation: {self.generation}", True, black)
-        text_players = font.render(f"Players Alive: {len(self.player_list) - (1 if self.rewind else 0)}", True, black)
-        self.screen.blit(text_gen, (screen_width - 180, 10))
-        self.screen.blit(text_players, (screen_width - 180, 30))
+        for border in self.borders: border.draw()
+        for i, text in enumerate(additional_texts):
+            self.screen.blit(self.font.render(text, True, black), (10, 10 + i * 20))
         pygame.display.update()
-
-    def events(self):
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.quit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    self.quit()
 
     def quit(self):
         pygame.quit()
-        sys.exit()

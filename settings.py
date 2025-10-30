@@ -6,37 +6,39 @@ import math
 
 pygame.init()
 
-# size of the square tiles that make up the map
+# Kích thước của các ô vuông tạo nên bản đồ
 tile_size = 40
 screen_width = tile_size * 20
 screen_height = tile_size * 15
 
-# true if the game is running
-run = True
-
-# File path for data files
+# Đường dẫn file
 map_path = r"D:\Game-Bot\map.txt"
 moves_path = r"D:\Game-Bot\moves.txt"
+archive_path = r"D:\Game-Bot\archive.txt"
 
-# Game settings
+# Cài đặt game
 FPS = 60
-zoom = 5
-Title = "mmmmmmmmmm"
+Title = "AI Game Bot"
 
-# --- Các trọng số và phần thưởng cho hàm tính điểm mới ---
-# Trọng số phạt cho mỗi frame ở trong vùng an toàn (g, s, h)
-SAFE_ZONE_PENALTY_WEIGHT = 5.0
-# Trọng số phạt cho mỗi bước di chuyển
-MOVE_PENALTY_WEIGHT = 0.00
-# Điểm phạt khi va chạm kẻ thù
+# CHỌN CHẾ ĐỘ HIỂN THỊ QUÁ TRÌNH HUẤN LUYỆN
+VISUALIZATION_MODE = 3
+
+# --- Cài đặt cho thuật toán tiến hóa ---
+NUM_ELITES_TO_USE = 10
+
+# Xác suất một bước đi bị thay đổi so với cha mẹ, cho mỗi nhóm
+LIGHT_MUTATION_CHANCE = 0.03  
+MEDIUM_MUTATION_CHANCE = 0.3 
+HEAVY_MUTATION_CHANCE = 0.7  
+
+# --- Cài đặt cho hàm tính điểm (Fitness Function) ---
+SAFE_ZONE_PENALTY_WEIGHT = 2.0
+MOVE_PENALTY_WEIGHT = 0.5
 ENEMY_HIT_PENALTY = 0.0
-# Điểm phạt khi đi luẩn quẩn đến chết (nặng hơn va chạm enemy)
 WANDER_DEATH_PENALTY = 400.0
-# Điểm thưởng cực lớn khi chiến thắng
 WIN_REWARD = 10000.0
-# ---------------------------------------------------------
 
-# Colors
+# --- Màu sắc ---
 red = (255, 0, 0)
 black = (0, 0, 0)
 lavender = (224, 218, 254)
