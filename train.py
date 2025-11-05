@@ -4,7 +4,7 @@ from settings import *
 
 if __name__ == "__main__":
     LEVEL_TO_TRAIN = 1
-    POPULATION_SIZE = 500
+    POPULATION_SIZE = 100
     CHANGE_LIMIT = 70
     MAX_GENERATIONS = 1500
     

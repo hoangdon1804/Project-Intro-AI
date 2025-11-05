@@ -12,9 +12,9 @@ screen_width = tile_size * 20
 screen_height = tile_size * 15
 
 # Đường dẫn file
-map_path = r"D:\Game-Bot\map.txt"
-moves_path = r"D:\Game-Bot\moves.txt"
-archive_path = r"D:\Game-Bot\archive.txt"
+map_path = r"C:\Users\Admin\Documents\2025.1\Project-Intro-AI\map.txt"
+moves_path = r"C:\Users\Admin\Documents\2025.1\Project-Intro-AI\moves.txt"
+archive_path = r"C:\Users\Admin\Documents\2025.1\Project-Intro-AI\archive.txt"
 
 # Cài đặt game
 FPS = 60
