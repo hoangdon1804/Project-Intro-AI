@@ -12,31 +12,29 @@ screen_width = tile_size * 20
 screen_height = tile_size * 15
 
 # Đường dẫn file
-map_path = r"C:\Users\Admin\Documents\2025.1\Project-Intro-AI\map.txt"
-moves_path = r"C:\Users\Admin\Documents\2025.1\Project-Intro-AI\moves.txt"
-archive_path = r"C:\Users\Admin\Documents\2025.1\Project-Intro-AI\archive.txt"
+map_path = r"D:\Project-Intro-AI\map.txt"
+moves_path = r"D:\Project-Intro-AI\moves.txt"
+archive_path = r"D:\Project-Intro-AI\archive.txt"
 
 # Cài đặt game
 FPS = 60
 Title = "AI Game Bot"
 
 # CHỌN CHẾ ĐỘ HIỂN THỊ QUÁ TRÌNH HUẤN LUYỆN
+# 0: Không hiển thị gì (nhanh nhất)
+# 1: Hiển thị cá thể tốt nhất sau mỗi thế hệ
+# 3: Hiển thị song song tất cả cá thể (rất chậm, chỉ để debug)
 VISUALIZATION_MODE = 3
 
 # --- Cài đặt cho thuật toán tiến hóa ---
-NUM_ELITES_TO_USE = 10
-
-# Xác suất một bước đi bị thay đổi so với cha mẹ, cho mỗi nhóm
-LIGHT_MUTATION_CHANCE = 0.03  
-MEDIUM_MUTATION_CHANCE = 0.3 
-HEAVY_MUTATION_CHANCE = 0.7  
+TOURNAMENT_SIZE = 3
+NORMAL_MUTATION_CHANCE = 0.035
+END_STEP_MUTATION_CHANCE = 0.90
+DECADE_RESET_MUTATION_CHANCE = 0.10
 
 # --- Cài đặt cho hàm tính điểm (Fitness Function) ---
-SAFE_ZONE_PENALTY_WEIGHT = 2.0
-MOVE_PENALTY_WEIGHT = 0.5
-ENEMY_HIT_PENALTY = 0.0
-WANDER_DEATH_PENALTY = 400.0
-WIN_REWARD = 10000.0
+CHECKPOINT_REWARD = 150000.0
+DISTANCE_REWARD_BASE = 100000.0
 
 # --- Màu sắc ---
 red = (255, 0, 0)
@@ -49,3 +47,4 @@ palegreen = (158, 242, 155)
 blue = (0, 0, 255)
 midnightblue = (0, 0, 68)
 lime = (53, 247, 0)
+yellow = (255, 255, 0) # Màu cho checkpoint

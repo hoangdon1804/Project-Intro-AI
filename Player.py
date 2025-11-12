@@ -1,8 +1,9 @@
 import pygame
 from settings import *
+import random
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, game, x, y, speed, size, fill, border, moves_sequence, change_limit):
+    def __init__(self, game, x, y, speed, size, fill, border, moves_sequence, max_move_limit):
         self.groups = game.all_sprites, game.players
         pygame.sprite.Sprite.__init__(self, self.groups)
         self.game = game
@@ -15,13 +16,16 @@ class Player(pygame.sprite.Sprite):
         self.rect.x, self.rect.y, self.speed, self.size = x, y, speed, size
         
         self.moves = moves_sequence
-        self.change_limit = change_limit
+        self.max_move_limit = max_move_limit
         
         self.current_move_index = 0; self.is_alive = True; self.cause_of_death = ''
         self.safe_zone_frames = 0; self.actual_move_count = 0
-        self.changes_in_random_phase = 0; self.last_direction = -1
-        self.final_score = 0; self.final_distance = 0
-        self.random_mode_direction = random.randint(0, 8)
+        self.last_direction = -1
+        self.random_mode_direction = 0
+        self.last_checkpoint_reached = 1
+
+        # Chuyển chuỗi moves ban đầu thành một list để dễ dàng thêm vào
+        self.full_move_history = list(self.moves)
 
     def _read_move(self, direction):
         vx, vy = 0, 0
@@ -51,27 +55,28 @@ class Player(pygame.sprite.Sprite):
 
         if is_in_programmed_phase:
             action = int(self.moves[self.current_move_index])
-        else:
+        else: 
             if random.randint(0, 10) == 0:
                 self.random_mode_direction = random.randint(0, 8)
             action = self.random_mode_direction
         
         self.current_move_index += 1
-        self.process_action(action, is_in_programmed_phase)
+        self.process_action(action)
 
     def update_single_step(self, action):
-        is_in_programmed_phase = self.current_move_index < len(self.moves)
         self.current_move_index += 1
-        self.process_action(action, is_in_programmed_phase)
+        self.process_action(action)
         
-    def process_action(self, action, is_programmed):
-        if action > 0: self.actual_move_count += 1
+    def process_action(self, action):
+        if self.current_move_index > len(self.moves):
+            self.full_move_history.append(str(action))
+
+        if action > 0: 
+            self.actual_move_count += 1
         
-        if not is_programmed:
-            if action != self.last_direction:
-                self.changes_in_random_phase += 1
-            if self.changes_in_random_phase > self.change_limit:
-                self.die('wander_death'); return
+        if self.actual_move_count > self.max_move_limit:
+            self.die('wander_death')
+            return
         
         self.last_direction = action
         vx, vy = self._read_move(action)
