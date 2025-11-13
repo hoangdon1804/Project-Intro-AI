@@ -64,16 +64,25 @@ class AITrainer:
         progress_score = (player_instance.last_checkpoint_reached - 1) * CHECKPOINT_REWARD
         progress_score += DISTANCE_REWARD_BASE / (1.0 + distance_to_next)
 
-        survival_ratio = player_instance.actual_move_count / self.max_move_limit if self.max_move_limit > 0 else 0
         
-        penalty = 1.0
-        if cause_of_death == 'enemy_hit': penalty = 0.9
-        elif cause_of_death == 'wander_death': penalty = 1.0
-
-        final_fitness = (progress_score * (1 + survival_ratio) * penalty) ** 2
+        # ================================================================= #
+        # === THAY ĐỔI LOGIC TÍNH ĐIỂM THEO YÊU CẦU === #
+        # ================================================================= #
         
+        # Tính điểm fitness cơ bản trước
+        final_fitness = (progress_score) ** 2
+        
+        # Áp dụng penalty 50% nếu chết mà chưa qua được checkpoint nào
+        if cause_of_death != 'win' and player_instance.last_checkpoint_reached <= 1:
+            final_fitness *= 0.5
+        
+        # Thưởng điểm cực lớn nếu chiến thắng
         if cause_of_death == 'win':
             final_fitness += 1e18
+
+        # ================================================================= #
+        # === KẾT THÚC THAY ĐỔI === #
+        # ================================================================= #
 
         return final_fitness, distance_to_next
 
@@ -168,7 +177,7 @@ class AITrainer:
     
     def _create_initial_population(self):
         initial_population = []
-        initial_change_limit = 50 
+        initial_change_limit = 80 
 
         for _ in range(self.population_size):
             moves, direction, changes = "", 0, 0
@@ -225,7 +234,7 @@ class AITrainer:
             elite_child = self._apply_elite_mutation(best_parent['moves'])
             new_population.append(elite_child)
 
-        parent_pool = sorted_results[:25]
+        parent_pool = sorted_results[:50]
 
         if len(parent_pool) < TOURNAMENT_SIZE:
             print(f"Cảnh báo: Không đủ {TOURNAMENT_SIZE} cá thể trong Top {len(parent_pool)}. Sử dụng toàn bộ quần thể có sẵn.")
@@ -496,11 +505,11 @@ class Game:
         if len(self.checkpoints) < 2: print("CẢNH BÁO: Map không có checkpoint được đánh số. AI sẽ nhắm thẳng đến 'j'.")
         if not self.target_j_pos: print("LỖI: Map phải có một điểm chiến thắng 'j'."); self.quit()
         
-        EnemyLinear(self, 22, 4.65, 251, 220, [[251, 220], [549, 220]], blue, midnightblue)
-        EnemyLinear(self, 22, 4.65, 549, 260, [[549, 260], [251, 260]], blue, midnightblue)
-        #EnemyLinear(self, 22, 4.65, 251, 300, [[251, 300], [549, 300]], blue, midnightblue)
-        EnemyLinear(self, 22, 4.65, 549, 340, [[549, 340], [251, 340]], blue, midnightblue)
-        EnemyLinear(self, 22, 4.65, 251, 380, [[251, 380], [549, 380]], blue, midnightblue)
+        EnemyLinear(self, 22, 4.15, 251, 220, [[251, 220], [549, 220]], blue, midnightblue)
+        EnemyLinear(self, 22, 4.15, 549, 260, [[549, 260], [251, 260]], blue, midnightblue)
+        EnemyLinear(self, 22, 4.15, 251, 300, [[251, 300], [549, 300]], blue, midnightblue)
+        EnemyLinear(self, 22, 4.15, 549, 340, [[549, 340], [251, 340]], blue, midnightblue)
+        EnemyLinear(self, 22, 4.15, 251, 380, [[251, 380], [549, 380]], blue, midnightblue)
 
     def reset(self, level):
         self._load_map_data(level)

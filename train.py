@@ -5,7 +5,7 @@ from settings import *
 if __name__ == "__main__":
     LEVEL_TO_TRAIN = 1
     POPULATION_SIZE = 1000
-    INITIAL_MAX_MOVES = 300
+    INITIAL_MAX_MOVES = 200
     MAX_GENERATIONS = 1500
     
     random.seed(12345)

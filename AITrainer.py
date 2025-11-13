@@ -76,7 +76,8 @@ class AITrainer:
                 break
 
             if pygame.sprite.spritecollide(player, game.enemies, False):
-                cause = 'enemy_hit'
+                player.die('enemy_hit') # Gọi hàm die để xử lý logic cắt chuỗi
+                cause = player.cause_of_death
                 done = True
                 break
 
@@ -89,14 +90,16 @@ class AITrainer:
                             player.last_checkpoint_reached = checkpoint_id
                     elif zone.type == 'j':
                         if player.last_checkpoint_reached == game.checkpoints[-1]['id']:
-                            cause = 'win'
+                            player.die('win') # Gọi hàm die
+                            cause = player.cause_of_death
                             done = True
                             break
             if done:
                 break
         
         if not done and player.is_alive:
-            cause = 'timeout'
+            player.die('timeout') # Gọi hàm die
+            cause = player.cause_of_death
         
         score, distance = self._calculate_final_score(game, player, cause)
         
@@ -145,7 +148,7 @@ class AITrainer:
     
     def _create_initial_population(self):
         initial_population = []
-        initial_change_limit = 50 
+        initial_change_limit = 80 
 
         for _ in range(self.population_size):
             moves, direction, changes = "", 0, 0
@@ -182,7 +185,7 @@ class AITrainer:
         length = len(child_moves_list)
 
         if length > 10:
-            for i in range(length - 3, length):
+            for i in range(length - 10, length):
                 if random.random() < END_STEP_MUTATION_CHANCE:
                     child_moves_list[i] = str(random.randint(0, 8))
         else: 
@@ -192,28 +195,72 @@ class AITrainer:
 
         return "".join(child_moves_list)
 
+    def _apply_decade_reset_mutation(self, best_moves):
+        """
+        Tạo một cá thể mới từ cá thể tốt nhất.
+        Giữ lại một tỷ lệ phần trăm ban đầu (DECADE_RESET_KEEP_PERCENTAGE),
+        đột biến phần còn lại với xác suất đặc biệt.
+        """
+        if not best_moves: return ""
+
+        # Sử dụng hằng số từ settings.py để tính toán điểm chia
+        midpoint = int(len(best_moves) * DECADE_RESET_KEEP_PERCENTAGE)
+        
+        first_half = list(best_moves[:midpoint])
+        second_half_original = list(best_moves[midpoint:])
+        
+        new_second_half = []
+        for move in second_half_original:
+            if random.random() < DECADE_RESET_MUTATION_CHANCE:
+                # Có khả năng chuyển hướng: chọn một hướng đi ngẫu nhiên mới
+                new_second_half.append(str(random.randint(0, 8)))
+            else:
+                # Giữ nguyên hướng đi cũ
+                new_second_half.append(move)
+        
+        return "".join(first_half + new_second_half)
+
     def _create_new_generation(self, sorted_results):
+        # ================================================================= #
+        # === LOGIC MỚI: RESET SAU MỖI 10 THẾ HỆ === #
+        # ================================================================= #
+        if self.generation > 0 and self.generation % 10 == 0:
+            print(f"\n*** THỰC HIỆN DECADE RESET TẠI THẾ HỆ {self.generation} ***")
+            print("Tất cả cá thể mới sẽ được tạo dựa trên cá thể tốt nhất, với 50% sau được đột biến.")
+            new_population = []
+            best_moves = sorted_results[0]['moves']
+
+            for _ in range(self.population_size):
+                child_moves = self._apply_decade_reset_mutation(best_moves)
+                new_population.append(child_moves)
+            
+            self.population = new_population
+            print(f"Đã tạo thế hệ mới với {len(self.population)} cá thể từ Decade Reset.")
+            return # Thoát sớm sau khi thực hiện reset
+        # ================================================================= #
+        # === KẾT THÚC THAY ĐỔI === #
+        # ================================================================= #
+
+        # Logic tạo thế hệ thông thường sẽ chạy nếu không phải là thế hệ reset
         new_population = []
         
         best_parent = sorted_results[0]
-        num_elites = 5
+        num_elites = 10
         print(f"Tạo {num_elites} cá thể ưu tú từ cá thể tốt nhất thế hệ trước...")
         for _ in range(num_elites):
             elite_child = self._apply_elite_mutation(best_parent['moves'])
             new_population.append(elite_child)
 
-        parent_pool = sorted_results[:25]
+        # Sử dụng TOÀN BỘ thế hệ trước làm nguồn để chọn lọc giải đấu
+        parent_pool = sorted_results
 
         if len(parent_pool) < TOURNAMENT_SIZE:
-            print(f"Cảnh báo: Không đủ {TOURNAMENT_SIZE} cá thể trong Top {len(parent_pool)}. Sử dụng toàn bộ quần thể có sẵn.")
-            parent_pool = sorted_results
-            if len(parent_pool) < TOURNAMENT_SIZE:
-                print("Cảnh báo nghiêm trọng: Toàn bộ quần thể quá nhỏ để tạo giải đấu. Tạo lại quần thể ngẫu nhiên.")
-                self._create_initial_population()
-                return
+            print(f"Cảnh báo nghiêm trọng: Toàn bộ quần thể (size: {len(parent_pool)}) quá nhỏ để tạo giải đấu. Tạo lại quần thể ngẫu nhiên.")
+            self._create_initial_population()
+            return
 
         remaining_population_size = self.population_size - num_elites
-        print(f"Tạo {remaining_population_size} cá thể còn lại bằng Tournament Selection từ Top {len(parent_pool)}.")
+        print(f"Tạo {remaining_population_size} cá thể còn lại bằng Tournament Selection từ toàn bộ {len(parent_pool)} cá thể của thế hệ trước.")
         for _ in range(remaining_population_size):
             tournament_contenders = random.sample(parent_pool, TOURNAMENT_SIZE)
             winner_parent = max(tournament_contenders, key=lambda x: x['score'])

@@ -30,7 +30,15 @@ VISUALIZATION_MODE = 3
 TOURNAMENT_SIZE = 3
 NORMAL_MUTATION_CHANCE = 0.035
 END_STEP_MUTATION_CHANCE = 0.90
-DECADE_RESET_MUTATION_CHANCE = 0.10
+DECADE_RESET_MUTATION_CHANCE = 0.50
+
+# ================================================================= #
+# === THAM SỐ MỚI === #
+# ================================================================= #
+# Tỷ lệ phần trăm chuỗi di chuyển của cá thể tốt nhất sẽ được giữ lại NGUYÊN VẸN
+# trong sự kiện Decade Reset. Ví dụ: 0.7 nghĩa là giữ lại 70% đầu. (Giá trị từ 0.0 đến 1.0)
+DECADE_RESET_KEEP_PERCENTAGE = 0.95 
+# ================================================================= #
 
 # --- Cài đặt cho hàm tính điểm (Fitness Function) ---
 CHECKPOINT_REWARD = 150000.0

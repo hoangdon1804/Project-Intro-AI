@@ -56,7 +56,7 @@ class Player(pygame.sprite.Sprite):
         if is_in_programmed_phase:
             action = int(self.moves[self.current_move_index])
         else: 
-            if random.randint(0, 10) == 0:
+            if random.randint(0, 25) == 0:
                 self.random_mode_direction = random.randint(0, 8)
             action = self.random_mode_direction
         
@@ -84,4 +84,23 @@ class Player(pygame.sprite.Sprite):
 
     def die(self, cause):
         if not self.is_alive: return
-        self.is_alive = False; self.cause_of_death = cause; self.kill()
+        self.is_alive = False
+        self.cause_of_death = cause
+
+        # ================================================================= #
+        # === LOGIC MỚI: CẮT CHUỖI DI CHUYỂN NẾU CHẾT SỚM === #
+        # ================================================================= #
+        
+        # Kiểm tra xem cá thể có chết trong giai đoạn di chuyển theo lập trình không
+        # self.current_move_index là số bước đã đi.
+        if self.current_move_index <= len(self.moves):
+            # Nếu có, cắt ngắn lịch sử di chuyển để chỉ bao gồm các bước đã thực hiện
+            # Lưu ý: current_move_index đã được tăng lên 1 trước khi process_action được gọi,
+            # nên nó đại diện cho độ dài chính xác cần cắt.
+            self.full_move_history = self.full_move_history[:self.current_move_index]
+
+        # ================================================================= #
+        # === KẾT THÚC THAY ĐỔI === #
+        # ================================================================= #
+        
+        self.kill()
