@@ -1,16 +1,16 @@
 import pygame
 import sys
+import random
 from Game import Game
 from settings import *
+from train import POPULATION_SIZE
 
 def get_last_solution():
     """Đọc chuỗi hành động cuối cùng từ archive.txt."""
     try:
         with open(archive_path, 'r', encoding='utf-8') as f:
-            # Lọc ra các dòng chỉ chứa chữ số (là chuỗi hành động)
             lines = [line.strip() for line in f if line.strip().isdigit()]
         if lines:
-            # Lấy lời giải cuối cùng trong file
             solution = lines[-1]
             print(f"Đã tìm thấy lời giải với {len(solution)} bước.")
             return solution
@@ -20,77 +20,109 @@ def get_last_solution():
         print(f"Lỗi: không tìm thấy {archive_path}")
         return None
 
+def _apply_replay_mutation(parent_moves):
+    if not parent_moves: return ""
+    child_moves_list = list(parent_moves)
+    mutation_chance = 0.05  # 5% cơ hội đột biến mỗi bước
+    for i in range(len(child_moves_list)):
+        if random.random() < mutation_chance:
+            child_moves_list[i] = str(random.randint(0, 8))
+    
+    # Thêm một chút ngẫu nhiên vào độ dài của lộ trình
+    if random.random() < 0.1:
+        cutoff = random.randint(int(len(child_moves_list) * 0.95), len(child_moves_list))
+        child_moves_list = child_moves_list[:cutoff]
+        
+    return "".join(child_moves_list)
+
 def run_replay(moves, level):
     """
-    Chạy lại game với chuỗi hành động cho trước.
-    Phiên bản này được đồng bộ hóa để hoạt động đúng với logic của lớp Player.
+    Chạy lại game với chuỗi hành động cho trước, hiển thị song song
+    một quần thể đầy đủ giống như chế độ huấn luyện.
     """
     if not moves:
         return
 
     game = Game(headless=False)
-    player = game.reset(level)
 
-    # --- THAY ĐỔI QUAN TRỌNG ---
-    # Gán toàn bộ chuỗi hành động cho người chơi.
-    # Người chơi sẽ tự động đi theo chuỗi này khi player.update() được gọi.
-    player.moves = moves
-    # Đặt giới hạn di chuyển đủ lớn để hoàn thành replay
-    player.max_move_limit = len(moves) + 100 
+    # ================================================================= #
+    # === THAY ĐỔI: TẠO RA MỘT QUẦN THỂ DỰA TRÊN LỘ TRÌNH CHIẾN THẮNG === #
+    # ================================================================= #
+    print(f"Tạo một quần thể gồm {POPULATION_SIZE} cá thể để replay...")
+    population_moves = [moves]  # Cá thể đầu tiên luôn là cá thể chiến thắng
+    
+    # Tạo các cá thể còn lại bằng cách đột biến nhẹ lộ trình chiến thắng
+    for _ in range(POPULATION_SIZE - 1):
+        mutated_moves = _apply_replay_mutation(moves)
+        population_moves.append(mutated_moves)
 
-    # Đổi màu người chơi để dễ phân biệt với chế độ huấn luyện/chơi thường
-    player.image.fill(black) 
-    pygame.draw.rect(player.image, lime, [4, 4, player.size - 8, player.size - 8])
+    # Sử dụng hàm reset_for_population để tạo tất cả người chơi
+    max_moves_for_replay = len(moves) + 100
+    living_players = game.reset_for_population(level, population_moves, max_moves_for_replay)
+
+    # Tìm và đổi màu cá thể chính (cá thể chiến thắng) để làm nổi bật
+    main_player = living_players[0]
+    main_player.image.fill(black) 
+    pygame.draw.rect(main_player.image, lime, [4, 4, main_player.size - 8, main_player.size - 8])
     
     running = True
-    print("--- Bắt đầu Replay ---")
+    print("--- Bắt đầu Replay song song ---")
 
+    # ================================================================= #
+    # === THAY ĐỔI: VÒNG LẶP GAME ĐỂ QUẢN LÝ NHIỀU CÁ THỂ === #
+    # ================================================================= #
     while running:
-        # 1. XỬ LÝ SỰ KIỆN (INPUT)
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 running = False
 
-        # 2. CẬP NHẬT TRẠNG THÁI GAME
-        # Chỉ cần gọi player.update(), nó sẽ tự đọc hành động từ chuỗi 'moves'
-        player.update()
+        # Nếu không còn cá thể nào sống, hoặc cá thể chính đã chết, kết thúc replay
+        if not living_players or not main_player.is_alive:
+            running = False
+
+        # Cập nhật trạng thái của tất cả sprites (người chơi, kẻ địch)
+        game.all_sprites.update()
         game.enemies.update()
 
-        # 3. KIỂM TRA ĐIỀU KIỆN KẾT THÚC
-        # a. Người chơi chết (ví dụ: hết nước đi)
-        if not player.is_alive:
-            print(f"Replay kết thúc: {player.cause_of_death}")
-            running = False
+        # Kiểm tra va chạm và điều kiện thắng cho từng cá thể
+        for player in living_players[:]:  # Dùng slice copy để có thể xóa phần tử khỏi list
+            if not player.is_alive:
+                if player in living_players:
+                    living_players.remove(player)
+                continue
 
-        # b. Va chạm với kẻ địch
-        if pygame.sprite.spritecollide(player, game.enemies, False):
-            print("Replay kết thúc: Bị kẻ địch va phải.")
-            running = False
-        
-        # c. Đi vào vùng chiến thắng
-        zones_hit = pygame.sprite.spritecollide(player, game.zones, False)
-        if zones_hit:
-            for zone in zones_hit:
-                if zone.type == 'j':
-                    # Đảm bảo đã đi qua hết checkpoint trước khi thắng
-                    if player.last_checkpoint_reached == game.checkpoints[-1]['id']:
-                        print("Replay kết thúc: CHIẾN THẮNG!")
-                        running = False
-                        break
-        
-        # Nếu một trong các điều kiện trên xảy ra, vòng lặp sẽ dừng ở lần kiểm tra tiếp theo
+            # a. Va chạm với kẻ địch
+            if pygame.sprite.spritecollide(player, game.enemies, False):
+                player.die('enemy_hit')
 
-        # 4. VẼ LÊN MÀN HÌNH
+            # b. Đi vào vùng an toàn/checkpoint/chiến thắng
+            zones_hit = pygame.sprite.spritecollide(player, game.zones, False)
+            if zones_hit:
+                for zone in zones_hit:
+                    if zone.type.isdigit():
+                        if int(zone.type) == player.last_checkpoint_reached + 1:
+                            player.last_checkpoint_reached = int(zone.type)
+                    elif zone.type == 'j':
+                        if player.last_checkpoint_reached == game.checkpoints[-1]['id']:
+                            player.die('win')
+                            if player is main_player:
+                                print("Replay kết thúc: CÁ THỂ CHÍNH ĐÃ CHIẾN THẮNG!")
+
+            # Xóa cá thể nếu nó vừa chết trong vòng lặp này
+            if not player.is_alive and player in living_players:
+                living_players.remove(player)
+
+        # Vẽ lại màn hình với thông tin cập nhật
         texts = [
-            "REPLAY MODE",
-            # Sử dụng current_move_index của player để hiển thị tiến độ
-            f"Step: {player.current_move_index}/{len(moves)}"
+            "PARALLEL REPLAY MODE",
+            f"PLAYERS ALIVE: {len(living_players)}/{POPULATION_SIZE}",
+            f"Main Player Step: {main_player.current_move_index}/{len(moves)}"
         ]
         game.draw(additional_texts=texts)
         game.clock.tick(FPS)
 
-    # Đợi một chút trước khi đóng cửa sổ
     pygame.time.wait(2000)
+    print(f"Trạng thái cuối cùng của cá thể chính: {main_player.cause_of_death}")
     print("--- Kết thúc Replay ---")
     game.quit()
 

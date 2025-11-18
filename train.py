@@ -1,10 +1,10 @@
 from AITrainer import AITrainer
 from functions import clear_file
 from settings import *
-
+POPULATION_SIZE = 1000
 if __name__ == "__main__":
     LEVEL_TO_TRAIN = 1
-    POPULATION_SIZE = 1000
+    
     INITIAL_MAX_MOVES = 200
     MAX_GENERATIONS = 1500
     

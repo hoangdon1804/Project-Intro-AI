@@ -31,26 +31,13 @@ class AITrainer:
 
         progress_score = (player_instance.last_checkpoint_reached - 1) * CHECKPOINT_REWARD
         progress_score += DISTANCE_REWARD_BASE / (1.0 + distance_to_next)
-
-        
-        # ================================================================= #
-        # === THAY ĐỔI LOGIC TÍNH ĐIỂM THEO YÊU CẦU === #
-        # ================================================================= #
-        
-        # Tính điểm fitness cơ bản trước
         final_fitness = (progress_score) ** 2
         
-        # Áp dụng penalty 50% nếu chết mà chưa qua được checkpoint nào
         if cause_of_death != 'win' and player_instance.last_checkpoint_reached <= 1:
             final_fitness *= 0.5
-        
-        # Thưởng điểm cực lớn nếu chiến thắng
+
         if cause_of_death == 'win':
             final_fitness += 1e18
-
-        # ================================================================= #
-        # === KẾT THÚC THAY ĐỔI === #
-        # ================================================================= #
 
         return final_fitness, distance_to_next
 
@@ -65,10 +52,7 @@ class AITrainer:
 
         for _ in range(max_simulation_steps):
             player.update()
-            # ================================================================= #
-            # === SỬA LỖI QUAN TRỌNG: THÊM DÒNG NÀY ĐỂ KẺ ĐỊCH DI CHUYỂN === #
             game.enemies.update()
-            # ================================================================= #
             
             if not player.is_alive:
                 cause = player.cause_of_death
@@ -76,7 +60,7 @@ class AITrainer:
                 break
 
             if pygame.sprite.spritecollide(player, game.enemies, False):
-                player.die('enemy_hit') # Gọi hàm die để xử lý logic cắt chuỗi
+                player.die('enemy_hit')
                 cause = player.cause_of_death
                 done = True
                 break
@@ -90,7 +74,7 @@ class AITrainer:
                             player.last_checkpoint_reached = checkpoint_id
                     elif zone.type == 'j':
                         if player.last_checkpoint_reached == game.checkpoints[-1]['id']:
-                            player.die('win') # Gọi hàm die
+                            player.die('win') 
                             cause = player.cause_of_death
                             done = True
                             break
@@ -98,16 +82,15 @@ class AITrainer:
                 break
         
         if not done and player.is_alive:
-            player.die('timeout') # Gọi hàm die
+            player.die('timeout') 
             cause = player.cause_of_death
         
         score, distance = self._calculate_final_score(game, player, cause)
         
-        # Chuyển list lịch sử đầy đủ thành chuỗi để di truyền
         final_moves_str = "".join(player.full_move_history)
         
         return {
-            "moves": final_moves_str, # Sử dụng chuỗi hành động đầy đủ đã được ghi lại
+            "moves": final_moves_str, 
             "score": score, "cause": cause, 
             "actual_move_count": player.actual_move_count, "distance_to_target": distance,
             "checkpoints_passed": player.last_checkpoint_reached - 1
@@ -126,7 +109,7 @@ class AITrainer:
                 if event.type == pygame.QUIT: running = False
             
             player.update()
-            game.enemies.update() # Đảm bảo kẻ địch cũng di chuyển trong lúc visualize
+            game.enemies.update() 
             
             if not player.is_alive: running = False
 
@@ -162,7 +145,7 @@ class AITrainer:
                 moves += str(direction)
             initial_population.append(moves)
         self.population = initial_population
-        print(f"Thế hệ {self.generation}: Đã tạo {self.population_size} cá thể ngẫu nhiên (kiểu cũ, initial_change_limit: {initial_change_limit}).")
+        print(f"Thế hệ {self.generation}: Đã tạo {self.population_size} cá thể ngẫu nhiên (initial_change_limit: {initial_change_limit}).")
 
     def _apply_conditional_mutation(self, parent_individual):
         parent_moves = parent_individual['moves']; parent_cause = parent_individual['cause']
@@ -203,7 +186,6 @@ class AITrainer:
         """
         if not best_moves: return ""
 
-        # Sử dụng hằng số từ settings.py để tính toán điểm chia
         midpoint = int(len(best_moves) * DECADE_RESET_KEEP_PERCENTAGE)
         
         first_half = list(best_moves[:midpoint])
@@ -212,18 +194,13 @@ class AITrainer:
         new_second_half = []
         for move in second_half_original:
             if random.random() < DECADE_RESET_MUTATION_CHANCE:
-                # Có khả năng chuyển hướng: chọn một hướng đi ngẫu nhiên mới
                 new_second_half.append(str(random.randint(0, 8)))
             else:
-                # Giữ nguyên hướng đi cũ
                 new_second_half.append(move)
         
         return "".join(first_half + new_second_half)
 
     def _create_new_generation(self, sorted_results):
-        # ================================================================= #
-        # === LOGIC MỚI: RESET SAU MỖI 10 THẾ HỆ === #
-        # ================================================================= #
         if self.generation > 0 and self.generation % 10 == 0:
             print(f"\n*** THỰC HIỆN DECADE RESET TẠI THẾ HỆ {self.generation} ***")
             print("Tất cả cá thể mới sẽ được tạo dựa trên cá thể tốt nhất, với 50% sau được đột biến.")
@@ -236,12 +213,7 @@ class AITrainer:
             
             self.population = new_population
             print(f"Đã tạo thế hệ mới với {len(self.population)} cá thể từ Decade Reset.")
-            return # Thoát sớm sau khi thực hiện reset
-        # ================================================================= #
-        # === KẾT THÚC THAY ĐỔI === #
-        # ================================================================= #
-
-        # Logic tạo thế hệ thông thường sẽ chạy nếu không phải là thế hệ reset
+            return 
         new_population = []
         
         best_parent = sorted_results[0]
@@ -251,7 +223,6 @@ class AITrainer:
             elite_child = self._apply_elite_mutation(best_parent['moves'])
             new_population.append(elite_child)
 
-        # Sử dụng TOÀN BỘ thế hệ trước làm nguồn để chọn lọc giải đấu
         parent_pool = sorted_results
 
         if len(parent_pool) < TOURNAMENT_SIZE:

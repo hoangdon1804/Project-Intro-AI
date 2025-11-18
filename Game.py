@@ -83,11 +83,11 @@ class Game:
         if len(self.checkpoints) < 2: print("CẢNH BÁO: Map không có checkpoint được đánh số. AI sẽ nhắm thẳng đến 'j'.")
         if not self.target_j_pos: print("LỖI: Map phải có một điểm chiến thắng 'j'."); self.quit()
         
-        EnemyLinear(self, 22, 4.0, 251, 220, [[251, 220], [549, 220]], blue, midnightblue)
-        EnemyLinear(self, 22, 4.0, 549, 260, [[549, 260], [251, 260]], blue, midnightblue)
-        EnemyLinear(self, 22, 4.0, 251, 300, [[251, 300], [549, 300]], blue, midnightblue)
-        EnemyLinear(self, 22, 4.0, 549, 340, [[549, 340], [251, 340]], blue, midnightblue)
-        EnemyLinear(self, 22, 4.0, 251, 380, [[251, 380], [549, 380]], blue, midnightblue)
+        EnemyLinear(self, 22, 2.50, 251, 220, [[251, 220], [549, 220]], blue, midnightblue)
+        EnemyLinear(self, 22, 2.50, 549, 260, [[549, 260], [251, 260]], blue, midnightblue)
+        EnemyLinear(self, 22, 2.50, 251, 300, [[251, 300], [549, 300]], blue, midnightblue)
+        EnemyLinear(self, 22, 2.50, 549, 340, [[549, 340], [251, 340]], blue, midnightblue)
+        EnemyLinear(self, 22, 2.50, 251, 380, [[251, 380], [549, 380]], blue, midnightblue)
 
     def reset(self, level):
         self._load_map_data(level)
