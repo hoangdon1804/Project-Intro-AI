@@ -1,0 +1,421 @@
+=========================================
+ PROJECT DIRECTORY STRUCTURE
+=========================================
+
+Root directory: D:\PRJqq
+
+PRJqq/
+    |-- level_manager.py
+    |-- main.py
+    |-- settings.py
+    |-- sprites.py
+    |-- summary.txt
+    |-- test.py
+|-- __pycache__/
+
+=========================================
+ PYTHON FILES CONTENT (.py)
+=========================================
+
+--- File: level_manager.py ---
+import pygame
+from settings import *
+
+class LevelManager:
+    @staticmethod
+    def get_config(lvl):
+        config = {
+            "player_pos": (160, 335),
+            "enemies": [], "coins": [], "walls_pts": [], "grid_cells": [],
+            "finish_rect": pygame.Rect(0,0,0,0), "checkpoints": [], "coins_req": 0
+        }
+
+        if lvl == 0:
+            config["enemies"] = [[325,325,3,0], [325,425,3,0], [775,275,-3,0], [775,375,-3,0]]
+            config["walls_pts"] = [(250,450), (250,200), (100,200), (100,500), (350,500), (350,450), (800,450), (800,250), (850,250), (850,500), (1000,500), (1000,200), (750,200), (750,250), (300,250), (300,450)]
+            config["finish_rect"] = pygame.Rect(850, 200, 150, 300)
+            # Grid Level 0
+            for x in range(350, 800, 100): config["grid_cells"] += [(x,250), (x,350)]
+            for x in range(300, 750, 100): config["grid_cells"] += [(x,300), (x,400)]
+            config["grid_cells"] += [(250,450), (800,200)]
+
+        elif lvl == 1:
+            config["enemies"] = [[x, 226, 0, 2] for x in range(275, 875, 100)] + [[x, 474, 0, -2] for x in range(325, 925, 100)]
+            config["walls_pts"] = [(250,400), (100,400), (100,300), (250,300), (250,200), (850,200), (850,300), (1000,300), (1000,400), (850,400), (850,500), (250,500)]
+            config["finish_rect"] = pygame.Rect(850, 300, 150, 100)
+            config["coins"] = [[550, 350]]; config["coins_req"] = 1
+            # Grid Level 1
+            for x in range(300, 850, 100): config["grid_cells"] += [(x, 200), (x, 300), (x, 400)]
+            for x in range(250, 800, 100): config["grid_cells"] += [(x, 250), (x, 350), (x, 450)]
+
+        elif lvl == 2:
+            config["player_pos"] = (550-15, 350-15)
+            config["finish_rect"] = pygame.Rect(500, 300, 100, 100)
+            config["enemies"] = [[526,275,1.5,0], [574,275,1.5,0], [625,275,0,1.5], [625,326,0,1.5], [625,374,0,1.5], [625,425,-1.5,0], [574,425,-1.5,0], [526,425,-1.5,0], [475,425,0,-1.5], [475,374,0,-1.5]]
+            config["walls_pts"] = [(500,250), (650,250), (650,450), (450,450), (450,200), (500,200)]
+            config["coins"] = [[475, 225]]; config["coins_req"] = 1
+            # Grid Level 2
+            config["grid_cells"] = [(450,250), (450,350), (550,250), (600,300), (500,400), (600,400)]
+
+        elif lvl == 3:
+            config["player_pos"] = (550-15, 125-15)
+            config["finish_rect"] = pygame.Rect(200, 350, 150, 100)
+            config["coins"] = [[550, 250], [700, 400], [550, 550]]; config["coins_req"] = 3
+            center = (550, 400)
+            for r in [175, 140, 105, 70, 35]:
+                for off in [0, 1.6, 3.2, 4.8]: config["enemies"].append([center[0], center[1], r, off])
+            config["walls_pts"] = [(500,200), (500,50), (600,50), (600,200), (650,200), (650,250), (700,250), (700,300), (750,300), (750,500), (700,500), (700,550), (650,550), (650,600), (450,600), (450,550), (400,550), (400,500), (350,500), (350,450), (200,450), (200,350), (350,350), (350,300), (400,300), (400,250), (450,250), (450,200)]
+            # Grid Level 3 (Checkerboard loops)
+            for x in range(500,650,100): config["grid_cells"].append((x,200))
+            for x in range(450,700,100): config["grid_cells"].append((x,250))
+            for x in range(400,750,100): config["grid_cells"].append((x,300))
+            for x in range(350,700,100): config["grid_cells"].append((x,350))
+            for x in range(400,750,100): config["grid_cells"].append((x,400))
+            for x in range(350,700,100): config["grid_cells"].append((x,450))
+            for x in range(400,650,100): config["grid_cells"].append((x,500))
+            for x in range(450,600,100): config["grid_cells"].append((x,550))
+
+        elif lvl == 4:
+            config["player_pos"] = (150-15, 125-15)
+            config["finish_rect"] = pygame.Rect(650, 300, 50, 100)
+            config["checkpoints"] = [pygame.Rect(900, 100, 50, 50), pygame.Rect(100, 200, 50, 50)]
+            center = (550, 350)
+            for r in [375, 275, 175, 75]:
+                for off in [0, 1.6, 3.2, 4.8]: config["enemies"].append([center[0], center[1], r, off])
+            config["walls_pts"] = [(100,150), (100,100), (950,100), (950,150), (900,150), (900,600), (200,600), (200,250), (100,250), (100,200), (800,200), (800,500), (300,500), (300,300), (700,300), (700,400), (400,400), (400,350), (350,350), (350,450), (750,450), (750,250), (250,250), (250,550), (850,550), (850,150)]
+            # Grid Level 4
+            for x in range(200,850,100): config["grid_cells"].append((x,100))
+            for y in range(150,600,100): config["grid_cells"].append((850,y))
+            for x in range(250,800,100): config["grid_cells"].append((x,550))
+            for y in range(200,600,100): config["grid_cells"].append((200,y))
+            for x in range(300,800,100): config["grid_cells"].append((x,200))
+            for y in range(250,500,100): config["grid_cells"].append((750,y))
+            for x in range(350,750,100): config["grid_cells"].append((x,450))
+            for y in range(300,450,100): config["grid_cells"].append((300,y))
+            for x in range(400,650,100): config["grid_cells"].append((x,300))
+            for x in range(450,600,100): config["grid_cells"].append((x,350))
+        
+        return config
+
+----------------------------------------
+
+--- File: main.py ---
+import pygame
+import sys
+from settings import *
+from sprites import Player, Enemy, Coin
+from level_manager import LevelManager
+
+class Game:
+    def __init__(self, start_level=0):
+        pygame.init()
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption("The World's Hardest Game - Python")
+        self.clock = pygame.time.Clock()
+        self.font = pygame.font.SysFont("Arial", 22, bold=True)
+        
+        self.lvl = start_level
+        self.deaths = 0
+        self.angle = 0
+        self.checkpoint_pos = None
+        self.load_level()
+
+    def load_level(self):
+        data = LevelManager.get_config(self.lvl)
+        # Hệ thống checkpoint
+        if self.checkpoint_pos is None:
+            self.checkpoint_pos = data["player_pos"]
+            
+        self.player = Player(*self.checkpoint_pos)
+        self.enemies = [Enemy(e, self.lvl) for e in data["enemies"]]
+        self.coins = [Coin(c[0], c[1]) for c in data["coins"]]
+        self.finish_rect = data["finish_rect"]
+        self.checkpoints = data.get("checkpoints", [])
+        self.walls_pts = data["walls_pts"]
+        self.grid_cells = data["grid_cells"]
+        self.coins_req = data["coins_req"]
+        self.current_coins = 0
+        
+        # Tạo mask tường để va chạm pixel
+        surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        if self.walls_pts:
+            pygame.draw.polygon(surf, BLACK, self.walls_pts, WALL_WIDTH)
+        self.wall_mask = pygame.mask.from_surface(surf)
+
+    def update(self):
+        keys = pygame.key.get_pressed()
+        dx = (keys[pygame.K_RIGHT] - keys[pygame.K_LEFT]) * PLAYER_SPEED
+        dy = (keys[pygame.K_DOWN] - keys[pygame.K_UP]) * PLAYER_SPEED
+        if dx != 0 or dy != 0: self.player.move(dx, dy, self.wall_mask)
+
+        # Cập nhật enemy và check chết
+        self.angle += 0.04
+        for en in self.enemies:
+            en.update(self.angle)
+            if self.player.rect.inflate(-12, -12).collidepoint(en.x, en.y):
+                self.deaths += 1
+                self.load_level()
+                return
+
+        # Check ăn coin
+        for c in self.coins[:]:
+            if self.player.rect.colliderect(c.rect):
+                self.coins.remove(c)
+                self.current_coins += 1
+
+        # Check checkpoint
+        for cp in self.checkpoints:
+            if cp.colliderect(self.player.rect):
+                self.checkpoint_pos = (cp.x + (cp.width-PLAYER_SIZE)//2, cp.y + (cp.height-PLAYER_SIZE)//2)
+
+        # Check về đích
+        if self.finish_rect.colliderect(self.player.rect) and self.current_coins >= self.coins_req:
+            self.lvl += 1
+            self.checkpoint_pos = None
+            self.load_level()
+
+    def draw(self):
+        # Màu nền thay đổi theo độ khó
+        color = BG_L_BLUE if self.lvl < 19 else BG_PURPLE
+        self.screen.fill(color)
+
+        # 1. Vẽ vùng đặc biệt (Start/Checkpoint/Finish)
+        if self.lvl == 0: pygame.draw.rect(self.screen, RED, (100, 200, 150, 300))
+        elif self.lvl == 1: pygame.draw.rect(self.screen, RED, (100, 300, 150, 100))
+        for cp in self.checkpoints: pygame.draw.rect(self.screen, GREEN_CHECKPOINT, cp)
+        pygame.draw.rect(self.screen, GREEN_FINISH, self.finish_rect)
+
+        # 2. VẼ Ô LƯỚI (GRID) - Vẽ trước tường để không đè lên viền
+        for cell in self.grid_cells:
+            pygame.draw.rect(self.screen, WHITE, (cell[0], cell[1], 50, 50))
+
+        # 3. Vẽ Tường
+        if self.walls_pts:
+            pygame.draw.polygon(self.screen, BLACK, self.walls_pts, WALL_WIDTH)
+
+        # 4. Vẽ Entities
+        for c in self.coins: c.draw(self.screen)
+        for en in self.enemies: en.draw(self.screen)
+        self.player.draw(self.screen)
+        
+        # 5. Vẽ UI
+        pygame.draw.rect(self.screen, BLACK, (0, 0, WIDTH, 40))
+        ui_txt = f"LEVEL: {self.lvl + 1} / 30    COINS: {self.current_coins}/{self.coins_req}    DEATHS: {self.deaths:04}"
+        self.screen.blit(self.font.render(ui_txt, True, WHITE), (20, 8))
+        
+        pygame.display.flip()
+
+    def run(self):
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT: pygame.quit(); sys.exit()
+            self.update(); self.draw()
+            self.clock.tick(FPS)
+
+if __name__ == "__main__":
+    # Thay đổi level bắt đầu ở đây
+    game = Game(start_level=4) 
+    game.run()
+
+----------------------------------------
+
+--- File: settings.py ---
+import pygame
+
+WIDTH, HEIGHT = 1100, 700
+FPS = 60
+PLAYER_SIZE = 30
+PLAYER_SPEED = 4
+ENEMY_RADIUS = 10
+WALL_WIDTH = 5
+
+# Colors
+BG_L_BLUE = (128, 128, 255)
+BG_PURPLE = (223, 128, 255)
+BG_RED = (255, 128, 128)
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+GREEN_FINISH = (0, 128, 0)
+GREEN_CHECKPOINT = (0, 230, 0)
+YELLOW_COIN = (255, 255, 0)
+BLUE_ENEMY = (0, 0, 255)
+
+----------------------------------------
+
+--- File: sprites.py ---
+import pygame
+import math
+from settings import *
+
+class Player:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, PLAYER_SIZE, PLAYER_SIZE)
+        
+    def move(self, dx, dy, wall_mask):
+        # Trục X
+        self.rect.x += dx
+        if wall_mask.overlap(pygame.mask.Mask((PLAYER_SIZE, PLAYER_SIZE), fill=True), (self.rect.x, self.rect.y)):
+            self.rect.x -= dx
+        # Trục Y
+        self.rect.y += dy
+        if wall_mask.overlap(pygame.mask.Mask((PLAYER_SIZE, PLAYER_SIZE), fill=True), (self.rect.x, self.rect.y)):
+            self.rect.y -= dy
+
+    def draw(self, surface):
+        pygame.draw.rect(surface, RED, self.rect)
+        pygame.draw.rect(surface, BLACK, self.rect, 2)
+
+class Enemy:
+    def __init__(self, data, lvl):
+        self.lvl = lvl
+        self.x = float(data[0])
+        self.y = float(data[1])
+        self.start_x, self.start_y = self.x, self.y
+        self.radius = data[2]
+        self.angle_offset = data[3]
+        self.dx = data[2] # Cho linear movement
+        self.dy = data[3] # Cho linear movement
+
+    def update(self, angle):
+        if self.lvl in [0, 1]: # Linear
+            if self.lvl == 0:
+                self.x += self.dx
+                if self.x <= 325 or self.x >= 775: self.dx *= -1
+            else:
+                self.y += self.dy
+                if self.y <= 226 or self.y >= 474: self.dy *= -1
+        elif self.lvl == 2: # Box
+            self.x += self.dx
+            self.y += self.dy
+            cx, cy = round(self.x), round(self.y)
+            if cx == 475 and cy == 275: self.dx, self.dy = 1.5, 0
+            elif cx == 625 and cy == 275: self.dx, self.dy = 0, 1.5
+            elif cx == 625 and cy == 425: self.dx, self.dy = -1.5, 0
+            elif cx == 475 and cy == 425: self.dx, self.dy = 0, -1.5
+        else: # Orbital (3, 4, 5)
+            self.x = self.start_x + self.radius * math.cos(angle + self.angle_offset)
+            self.y = self.start_y + self.radius * math.sin(angle + self.angle_offset)
+
+    def draw(self, surface):
+        pygame.draw.circle(surface, BLUE_ENEMY, (int(self.x), int(self.y)), ENEMY_RADIUS)
+        pygame.draw.circle(surface, BLACK, (int(self.x), int(self.y)), ENEMY_RADIUS, 2)
+
+class Coin:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x-15, y-15, 30, 30)
+        self.pos = (x, y)
+    def draw(self, surface):
+        pygame.draw.circle(surface, YELLOW_COIN, self.pos, 10)
+        pygame.draw.circle(surface, BLACK, self.pos, 10, 2)
+
+----------------------------------------
+
+--- File: test.py ---
+import os
+import argparse
+import tkinter as tk
+from tkinter import filedialog
+
+INPUT_PATH = os.getcwd()
+OUTPUT_PATH = os.path.join(os.getcwd(), "summary.txt")
+
+DEFAULT_IGNORE_DIRS = {'.git', '_pycache_', 'venv', '.vscode', '.idea', 'node_modules', 'build', 'dist'}
+DEFAULT_IGNORE_FILES = {'.DS_Store'}
+DEFAULT_IGNORE_EXTENSIONS = {'.pyc', '.log', '.tmp', '.bak', '.swp'}
+
+def generate_project_summary(input_path=INPUT_PATH, output_path=OUTPUT_PATH):
+    if not input_path or not os.path.isdir(input_path):
+        print(f"Error: Invalid path '{input_path}'")
+        return
+
+    project_structure = []
+    python_files_content = []
+    yaml_files_content = []
+
+    abs_project_path = os.path.abspath(input_path)
+    project_root_name = os.path.basename(abs_project_path)
+
+    for dirpath, dirnames, filenames in os.walk(abs_project_path, topdown=True):
+        dirnames[:] = [d for d in dirnames if d not in DEFAULT_IGNORE_DIRS]
+
+        relative_dir = os.path.relpath(dirpath, abs_project_path)
+        level = relative_dir.count(os.sep) if relative_dir != '.' else 0
+        indent = '    ' * level + '|-- '
+
+        if relative_dir == '.':
+            project_structure.append(f"{project_root_name}/")
+        else:
+            if not any(ignored in relative_dir.split(os.sep) for ignored in DEFAULT_IGNORE_DIRS):
+                project_structure.append(f"{indent}{os.path.basename(dirpath)}/")
+
+        sub_indent = '    ' * (level + 1) + '|-- '
+        dirnames.sort()
+        filenames.sort()
+
+        for filename in filenames:
+            if filename in DEFAULT_IGNORE_FILES:
+                continue
+            if os.path.splitext(filename)[1] in DEFAULT_IGNORE_EXTENSIONS:
+                continue
+
+            if not any(ignored in os.path.join(relative_dir, filename).split(os.sep) for ignored in DEFAULT_IGNORE_DIRS):
+                project_structure.append(f"{sub_indent}{filename}")
+
+            if filename.endswith(('.py', '.yaml')):
+                file_path = os.path.join(dirpath, filename)
+                relative_file_path = os.path.relpath(file_path, abs_project_path)
+
+                if not any(ignored in relative_file_path.split(os.sep) for ignored in DEFAULT_IGNORE_DIRS):
+                    try:
+                        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                            content = f.read()
+
+                        if filename.endswith('.py'):
+                            python_files_content.append((relative_file_path, content))
+                        elif filename.endswith('.yaml'):
+                            yaml_files_content.append((relative_file_path, content))
+
+                    except Exception as e:
+                        if filename.endswith('.py'):
+                            python_files_content.append((relative_file_path, f"Error reading file: {e}"))
+                        elif filename.endswith('.yaml'):
+                            yaml_files_content.append((relative_file_path, f"Error reading file: {e}"))
+
+    try:
+        with open(output_path, 'w', encoding='utf-8') as outfile:
+            outfile.write("=========================================\n")
+            outfile.write(" PROJECT DIRECTORY STRUCTURE\n")
+            outfile.write("=========================================\n\n")
+            outfile.write(f"Root directory: {abs_project_path}\n\n")
+            outfile.write('\n'.join(project_structure))
+            outfile.write("\n\n=========================================\n")
+            outfile.write(" PYTHON FILES CONTENT (.py)\n")
+            outfile.write("=========================================\n\n")
+
+            python_files_content.sort(key=lambda item: item[0])
+
+            for rel_path, content in python_files_content:
+                outfile.write(f"--- File: {rel_path} ---\n")
+                outfile.write(content)
+                outfile.write("\n\n----------------------------------------\n\n")
+
+            if yaml_files_content:
+                outfile.write("\n\n=========================================\n")
+                outfile.write(" YAML FILES CONTENT (.yaml)\n")
+                outfile.write("=========================================\n\n")
+
+                yaml_files_content.sort(key=lambda item: item[0])
+                for rel_path, content in yaml_files_content:
+                    outfile.write(f"--- File: {rel_path} ---\n")
+                    outfile.write(content)
+                    outfile.write("\n\n----------------------------------------\n\n")
+
+    except Exception as e:
+        print(f"Error writing output file: {e}")
+
+if __name__ == "__main__":
+    generate_project_summary()
+
+----------------------------------------
+
