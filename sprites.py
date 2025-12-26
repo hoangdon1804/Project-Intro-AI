@@ -7,14 +7,34 @@ class Player:
         self.rect = pygame.Rect(x, y, PLAYER_SIZE, PLAYER_SIZE)
         
     def move(self, dx, dy, wall_mask):
-        # Trục X
+        # --- XỬ LÝ TRỤC X ---
+        old_x = self.rect.x
         self.rect.x += dx
-        if wall_mask.overlap(pygame.mask.Mask((PLAYER_SIZE, PLAYER_SIZE), fill=True), (self.rect.x, self.rect.y)):
-            self.rect.x -= dx
-        # Trục Y
+        # Tạo mask tạm thời cho Player để kiểm tra va chạm
+        player_mask = pygame.mask.Mask((PLAYER_SIZE, PLAYER_SIZE), fill=True)
+        
+        if wall_mask.overlap(player_mask, (self.rect.x, self.rect.y)):
+            self.rect.x = old_x 
+            step = 1 if dx > 0 else -1
+            # Nhích từng pixel để sát tường nhất có thể
+            for _ in range(int(abs(dx))):
+                self.rect.x += step
+                if wall_mask.overlap(player_mask, (self.rect.x, self.rect.y)):
+                    self.rect.x -= step
+                    break
+
+        # --- XỬ LÝ TRỤC Y ---
+        old_y = self.rect.y
         self.rect.y += dy
-        if wall_mask.overlap(pygame.mask.Mask((PLAYER_SIZE, PLAYER_SIZE), fill=True), (self.rect.x, self.rect.y)):
-            self.rect.y -= dy
+        if wall_mask.overlap(player_mask, (self.rect.x, self.rect.y)):
+            self.rect.y = old_y
+            step = 1 if dy > 0 else -1
+            # Nhích từng pixel để sát tường nhất có thể
+            for _ in range(int(abs(dy))):
+                self.rect.y += step
+                if wall_mask.overlap(player_mask, (self.rect.x, self.rect.y)):
+                    self.rect.y -= step
+                    break
 
     def draw(self, surface):
         pygame.draw.rect(surface, RED, self.rect)
@@ -42,7 +62,26 @@ class Enemy:
                 if self.y <= 226 or self.y >= 474: self.dy *= -1
             elif self.lvl == 6:
                 if self.y <= 170 or self.y >= 530: self.dy *= -1
-
+        
+        elif self.lvl == 2:
+            self.x += self.dx
+            self.y += self.dy
+            
+            # Sử dụng giá trị tuyệt đối của tốc độ hiện tại để gán cho hướng mới
+            # giúp bạn chỉ cần chỉnh ở LevelManager là toàn bộ logic sẽ chạy theo
+            speed = max(abs(self.dx), abs(self.dy))
+            
+            # Kiểm tra va chạm các góc với sai số nhỏ (tốc độ càng cao sai số càng cần lớn)
+            # Ở đây dùng abs(self.x - góc) < speed để đảm bảo luôn bắt được điểm quay đầu
+            if abs(self.x - 475) < speed and abs(self.y - 275) < speed:
+                self.dx, self.dy = speed, 0
+            elif abs(self.x - 625) < speed and abs(self.y - 275) < speed:
+                self.dx, self.dy = 0, speed
+            elif abs(self.x - 625) < speed and abs(self.y - 425) < speed:
+                self.dx, self.dy = -speed, 0
+            elif abs(self.x - 475) < speed and abs(self.y - 425) < speed:
+                self.dx, self.dy = 0, -speed
+        
         elif self.lvl == 7: # Path movement (Chạy quanh ô vuông)
             self.x += self.dx
             self.y += self.dy

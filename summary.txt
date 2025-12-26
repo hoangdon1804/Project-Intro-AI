@@ -5,12 +5,15 @@
 Root directory: D:\PRJqq
 
 PRJqq/
+    |-- archivement.txt
     |-- level_manager.py
     |-- main.py
+    |-- script.js
     |-- settings.py
     |-- sprites.py
     |-- summary.txt
     |-- test.py
+    |-- train.py
 |-- __pycache__/
 
 =========================================
@@ -31,7 +34,7 @@ class LevelManager:
         }
 
         if lvl == 0:
-            config["enemies"] = [[325,325,3,0], [325,425,3,0], [775,275,-3,0], [775,375,-3,0]]
+            config["enemies"] = [[325,325,4,0], [325,425,4,0], [775,275,-4,0], [775,375,-4,0]]
             config["walls_pts"] = [(250,450), (250,200), (100,200), (100,500), (350,500), (350,450), (800,450), (800,250), (850,250), (850,500), (1000,500), (1000,200), (750,200), (750,250), (300,250), (300,450)]
             config["finish_rect"] = pygame.Rect(850, 200, 150, 300)
             # Grid Level 0
@@ -40,7 +43,7 @@ class LevelManager:
             config["grid_cells"] += [(250,450), (800,200)]
 
         elif lvl == 1:
-            config["enemies"] = [[x, 226, 0, 2] for x in range(275, 875, 100)] + [[x, 474, 0, -2] for x in range(325, 925, 100)]
+            config["enemies"] = [[x, 226, 0, 4] for x in range(275, 875, 100)] + [[x, 474, 0, -4] for x in range(325, 925, 100)]
             config["walls_pts"] = [(250,400), (100,400), (100,300), (250,300), (250,200), (850,200), (850,300), (1000,300), (1000,400), (850,400), (850,500), (250,500)]
             config["finish_rect"] = pygame.Rect(850, 300, 150, 100)
             config["coins"] = [[550, 350]]; config["coins_req"] = 1
@@ -49,9 +52,22 @@ class LevelManager:
             for x in range(250, 800, 100): config["grid_cells"] += [(x, 250), (x, 350), (x, 450)]
 
         elif lvl == 2:
+            MOVE_SPEED = 3.0 
+            
+            config["enemies"] = [
+                [526, 275, MOVE_SPEED, 0],   
+                [574, 275, MOVE_SPEED, 0],   
+                [625, 275, 0, MOVE_SPEED],   
+                [625, 326, 0, MOVE_SPEED],   
+                [625, 374, 0, MOVE_SPEED],   
+                [625, 425, -MOVE_SPEED, 0],  
+                [574, 425, -MOVE_SPEED, 0],  
+                [526, 425, -MOVE_SPEED, 0],  
+                [475, 425, 0, -MOVE_SPEED],  
+                [475, 374, 0, -MOVE_SPEED]
+            ]
             config["player_pos"] = (550-15, 350-15)
             config["finish_rect"] = pygame.Rect(500, 300, 100, 100)
-            config["enemies"] = [[526,275,1.5,0], [574,275,1.5,0], [625,275,0,1.5], [625,326,0,1.5], [625,374,0,1.5], [625,425,-1.5,0], [574,425,-1.5,0], [526,425,-1.5,0], [475,425,0,-1.5], [475,374,0,-1.5]]
             config["walls_pts"] = [(500,250), (650,250), (650,450), (450,450), (450,200), (500,200)]
             config["coins"] = [[475, 225]]; config["coins_req"] = 1
             # Grid Level 2
@@ -94,7 +110,96 @@ class LevelManager:
             for y in range(300,450,100): config["grid_cells"].append((300,y))
             for x in range(400,650,100): config["grid_cells"].append((x,300))
             for x in range(450,600,100): config["grid_cells"].append((x,350))
-        
+
+        elif lvl == 5:
+            config["player_pos"] = (150-15, 150-15)
+            config["finish_rect"] = pygame.Rect(100, 500, 100, 100)
+            config["checkpoints"] = [pygame.Rect(800, 300, 200, 100)]
+            config["coins"] = [[225,425], [425,425], [625,425], [825,425]]
+            config["coins_req"] = 4
+            config["walls_pts"] = [(100,100), (1000,100), (1000,600), (100,600), (100,500), (200,500), (200,400), (800,400), (800,300), (200,300), (200,200), (100,200)]
+            for x in range(200,950,100): config["grid_cells"] += [(x,100), (x,200), (x,400), (x,500)]
+            for x in range(250,1000,100): config["grid_cells"] += [(x,150), (x,250), (x,450), (x,550)]
+            # Enemies: 8 tâm xoay và các chấm xoay quanh
+            centers = [(300,200), (500,200), (700,200), (900,200), (300,500), (500,500), (700,500), (900,500)]
+            for cx, cy in centers:
+                config["enemies"].append([cx, cy, 0, 0]) # Chấm tâm đứng yên
+                for r in [86, 43]:
+                    for off in [0, 1.6, 3.2, 4.8]: config["enemies"].append([cx, cy, r, off])
+
+        elif lvl == 6:
+            config["player_pos"] = (175-15, 350-15)
+            config["finish_rect"] = pygame.Rect(850, 300, 150, 100)
+            config["walls_pts"] = [(100,300), (250,300), (250,150), (850,150), (850,300), (1000,300), (1000,400), (850,400), (850,550), (250,550), (250,400), (100,400)]
+            config["coins"] = [[275,175], [275,525], [825,175], [825,525]]
+            config["coins_req"] = 4
+            for x in range(250,850,100): config["grid_cells"] += [(x,150), (x,250), (x,350), (x,450)]
+            for x in range(300,850,100): config["grid_cells"] += [(x,200), (x,300), (x,400), (x,500)]
+            for i, x in enumerate(range(275, 875, 50)):
+                dy = 8 if i % 2 == 0 else -8
+                config["enemies"].append([x, 170 if i % 2 == 0 else 530, 0, dy])
+
+        elif lvl == 7:
+            config["player_pos"] = (325-15, 175-15)
+            config["finish_rect"] = pygame.Rect(750, 300, 100, 100)
+            config["walls_pts"] = [(250,100), (450,100), (450,150), (550,150), (550,100), (750,100), (750,300), (850,300), (850,400), (750,400), (750,600), (550,600), (550,550), (450,550), (450,600), (250,600), (250,100)]
+            config["coins"] = [[275, 575], [725, 125], [725, 575]]; config["coins_req"] = 3
+            # Grid Level 7
+            for y in range(150, 650, 100): config["grid_cells"] += [(250, y), (550, y)]
+            for y in range(100, 600, 100): config["grid_cells"] += [(400, y), (700, y)]
+            for x, y in [(300,100), (350,250), (300,400), (350,550), (450,150), (500,500), (600,100), (650,250), (600,400), (650,550)]:
+                config["grid_cells"].append((x, y))
+            # Enemies: [x, y, dx, dy]
+            config["enemies"] = [[274, 124, 4, 0], [274, 274, 4, 0], [274, 424, 4, 0], [726, 124, -4, 0], [726, 274, -4, 0], [726, 424, -4, 0], [424, 174, 4, 0]]
+
+        elif lvl == 8:
+            config["player_pos"] = (150-15, 150-15)
+            config["finish_rect"] = pygame.Rect(900, 300, 100, 100)
+            config["checkpoints"] = [pygame.Rect(500, 400, 100, 100)]
+            config["walls_pts"] = [(100,100), (200,100), (200,200), (300,200), (300,100), (600,100), (600,400), (700,400), (700,100), (1000,100), (1000,400), (900,400), (900,200), (800,200), (800,500), (1000,500), (1000,600), (700,600), (700,500), (400,500), (400,600), (100,600), (100,100)]
+            config["coins"] = [[950, 550]]; config["coins_req"] = 1
+            # Grid Level 8
+            for y in range(200, 600, 100): config["grid_cells"] += [(100, y), (700, y)]
+            for y in range(250, 650, 100): config["grid_cells"] += [(150, y), (750, y)]
+            for y in range(100, 400, 100): config["grid_cells"] += [(500, y)]
+            for y in range(150, 450, 100): config["grid_cells"] += [(550, y)]
+            for x, y in [(200,200), (250,250), (300,200), (350,250), (300,100), (350,150), (400,100), (450,150), (200,500), (250,550), (300,500), (350,550), (300,400), (350,450), (400,400), (450,450), (600,400), (650,450), (800,100), (850,150), (900,100), (950,150), (900,200), (950,250), (800,500), (850,550), (900,500), (950,550)]:
+                config["grid_cells"].append((x, y))
+            # Enemies: Static + Moving
+            statics = [[250,225], [325,150], [450,175], [525,250], [175,350], [125,450], [250,525], [325,450], [400,425], [475,475], [725,550], [725,350], [775,250], [850,175], [925,250]]
+            config["enemies"] = [[s[0], s[1], 0, 0] for s in statics]
+            config["enemies"] += [[125,225,5,0], [375,275,-5,0], [575,175,-5,0], [175,575,-5,0], [375,575,-5,0], [725,425,5,0], [725,125,5,0], [975,175,-5,0], [525,376,5,0], [901,575,0,-5]]
+
+        elif lvl == 9:
+            config["player_pos"] = (475-15, 150-15)
+            config["finish_rect"] = pygame.Rect(600, 100, 150, 100)
+            config["walls_pts"] = [(400,100), (550,100), (550,200), (450,200), (450,250), (500,250), (500,450), (400,450), (400,500), (650,500), (650,450), (550,450), (550,250), (600,250), (600,100), (750,100), (750,200), (650,200), (650,400), (750,400), (750,550), (650,550), (650,600), (400,600), (400,550), (300,550), (300,400), (400,400)]
+            config["coins_req"] = 0
+            # Grid Level 9
+            for x in range(300, 800, 100): config["grid_cells"].append((x, 500))
+            for x, y in [(400,200), (450,250), (400,300), (450,350), (400,400), (300,400), (350,450), (450,550), (550,550), (650,450), (700,400), (600,400), (550,350), (600,300), (550,250), (600,200)]:
+                config["grid_cells"].append((x, y))
+            config["enemies"] = [[486,275,-2,0], [486,375,-2,0], [386,475,-2,0], [736,525,-2,0], [736,425,-2,0], [636,425,-2,0], [636,325,-2,0], [414,325,2,0], [414,425,2,0], [314,425,2,0], [314,525,2,0], [664,475,2,0], [564,375,2,0], [564,275,2,0], [425,514,0,2], [525,514,0,2], [625,514,0,2], [475,586,0,-2], [575,586,0,-2]]
+
+        elif lvl == 10:
+            config["player_pos"] = (900-15, 300-15)
+            config["finish_rect"] = pygame.Rect(150, 350, 100, 100)
+            config["walls_pts"] = [(350,150), (950,150), (950,350), (850,350), (850,200), (750,200), (750,550), (150,550), (150,350), (250,350), (250,500), (350,500), (350,150)]
+            config["coins"] = [[375, 175], [725, 525]]; config["coins_req"] = 2
+            # Grid Level 10
+            for x in range(350, 950, 100): config["grid_cells"].append((x, 150))
+            for x in range(400, 800, 100): config["grid_cells"].append((x, 200))
+            for x in range(350, 750, 100): config["grid_cells"].append((x, 250))
+            for x in range(400, 800, 100): config["grid_cells"].append((x, 300))
+            for x in range(350, 750, 100): config["grid_cells"].append((x, 350))
+            for x in range(400, 800, 100): config["grid_cells"].append((x, 400))
+            for x in range(350, 750, 100): config["grid_cells"].append((x, 450))
+            for x in range(200, 800, 100): config["grid_cells"].append((x, 500))
+            config["grid_cells"] += [(150, 450), (900, 200)]
+            # Enemies
+            center = (550, 350)
+            for r in [250, 215, 180, 145, 110, 75, 40]:
+                for off in [0, 1.6, 3.2, 4.8]: config["enemies"].append([center[0], center[1], r, off])
         return config
 
 ----------------------------------------
@@ -149,24 +254,35 @@ class Game:
         if dx != 0 or dy != 0: self.player.move(dx, dy, self.wall_mask)
 
         # Cập nhật enemy và check chết
-        self.angle += 0.04
+        self.angle += 0.05
+        player_center = pygame.Vector2(self.player.rect.center)
         for en in self.enemies:
             en.update(self.angle)
-            if self.player.rect.inflate(-12, -12).collidepoint(en.x, en.y):
+            enemy_pos = pygame.Vector2(en.x, en.y)
+            distance = player_center.distance_to(enemy_pos)
+            
+            # Va chạm xảy ra khi khoảng cách nhỏ hơn (bán kính kẻ thù + nửa cạnh người chơi)
+            # Bán kính kẻ thù là ENEMY_RADIUS (10), nửa cạnh người chơi là PLAYER_SIZE/2 (15)
+            if distance < (ENEMY_RADIUS + PLAYER_SIZE / 2):
                 self.deaths += 1
                 self.load_level()
                 return
-
         # Check ăn coin
         for c in self.coins[:]:
-            if self.player.rect.colliderect(c.rect):
+            coin_pos = pygame.Vector2(c.pos)
+            distance = player_center.distance_to(coin_pos)
+            
+            # Bán kính coin là 10, nửa cạnh người chơi là 15
+            if distance < (10 + PLAYER_SIZE / 2):
                 self.coins.remove(c)
                 self.current_coins += 1
 
         # Check checkpoint
         for cp in self.checkpoints:
             if cp.colliderect(self.player.rect):
-                self.checkpoint_pos = (cp.x + (cp.width-PLAYER_SIZE)//2, cp.y + (cp.height-PLAYER_SIZE)//2)
+                new_cp = (cp.x + (cp.width-PLAYER_SIZE)//2, cp.y + (cp.height-PLAYER_SIZE)//2)
+                if self.checkpoint_pos != new_cp:
+                    self.checkpoint_pos = new_cp
 
         # Check về đích
         if self.finish_rect.colliderect(self.player.rect) and self.current_coins >= self.coins_req:
@@ -214,7 +330,7 @@ class Game:
 
 if __name__ == "__main__":
     # Thay đổi level bắt đầu ở đây
-    game = Game(start_level=4) 
+    game = Game(start_level=0) 
     game.run()
 
 ----------------------------------------
@@ -225,7 +341,7 @@ import pygame
 WIDTH, HEIGHT = 1100, 700
 FPS = 60
 PLAYER_SIZE = 30
-PLAYER_SPEED = 4
+PLAYER_SPEED = 2.5
 ENEMY_RADIUS = 10
 WALL_WIDTH = 5
 
@@ -253,14 +369,34 @@ class Player:
         self.rect = pygame.Rect(x, y, PLAYER_SIZE, PLAYER_SIZE)
         
     def move(self, dx, dy, wall_mask):
-        # Trục X
+        # --- XỬ LÝ TRỤC X ---
+        old_x = self.rect.x
         self.rect.x += dx
-        if wall_mask.overlap(pygame.mask.Mask((PLAYER_SIZE, PLAYER_SIZE), fill=True), (self.rect.x, self.rect.y)):
-            self.rect.x -= dx
-        # Trục Y
+        # Tạo mask tạm thời cho Player để kiểm tra va chạm
+        player_mask = pygame.mask.Mask((PLAYER_SIZE, PLAYER_SIZE), fill=True)
+        
+        if wall_mask.overlap(player_mask, (self.rect.x, self.rect.y)):
+            self.rect.x = old_x 
+            step = 1 if dx > 0 else -1
+            # Nhích từng pixel để sát tường nhất có thể
+            for _ in range(int(abs(dx))):
+                self.rect.x += step
+                if wall_mask.overlap(player_mask, (self.rect.x, self.rect.y)):
+                    self.rect.x -= step
+                    break
+
+        # --- XỬ LÝ TRỤC Y ---
+        old_y = self.rect.y
         self.rect.y += dy
-        if wall_mask.overlap(pygame.mask.Mask((PLAYER_SIZE, PLAYER_SIZE), fill=True), (self.rect.x, self.rect.y)):
-            self.rect.y -= dy
+        if wall_mask.overlap(player_mask, (self.rect.x, self.rect.y)):
+            self.rect.y = old_y
+            step = 1 if dy > 0 else -1
+            # Nhích từng pixel để sát tường nhất có thể
+            for _ in range(int(abs(dy))):
+                self.rect.y += step
+                if wall_mask.overlap(player_mask, (self.rect.x, self.rect.y)):
+                    self.rect.y -= step
+                    break
 
     def draw(self, surface):
         pygame.draw.rect(surface, RED, self.rect)
@@ -274,26 +410,77 @@ class Enemy:
         self.start_x, self.start_y = self.x, self.y
         self.radius = data[2]
         self.angle_offset = data[3]
-        self.dx = data[2] # Cho linear movement
-        self.dy = data[3] # Cho linear movement
+        self.dx = float(data[2]) 
+        self.dy = float(data[3])
+        self.speed_rot = 1.0 # Riêng cho level 10
 
     def update(self, angle):
-        if self.lvl in [0, 1]: # Linear
+        if self.lvl in [0, 1, 6]: # Linear đơn giản
+            self.x += self.dx
+            self.y += self.dy
             if self.lvl == 0:
-                self.x += self.dx
                 if self.x <= 325 or self.x >= 775: self.dx *= -1
-            else:
-                self.y += self.dy
+            elif self.lvl == 1:
                 if self.y <= 226 or self.y >= 474: self.dy *= -1
-        elif self.lvl == 2: # Box
+            elif self.lvl == 6:
+                if self.y <= 170 or self.y >= 530: self.dy *= -1
+        
+        elif self.lvl == 2:
+            self.x += self.dx
+            self.y += self.dy
+            
+            # Sử dụng giá trị tuyệt đối của tốc độ hiện tại để gán cho hướng mới
+            # giúp bạn chỉ cần chỉnh ở LevelManager là toàn bộ logic sẽ chạy theo
+            speed = max(abs(self.dx), abs(self.dy))
+            
+            # Kiểm tra va chạm các góc với sai số nhỏ (tốc độ càng cao sai số càng cần lớn)
+            # Ở đây dùng abs(self.x - góc) < speed để đảm bảo luôn bắt được điểm quay đầu
+            if abs(self.x - 475) < speed and abs(self.y - 275) < speed:
+                self.dx, self.dy = speed, 0
+            elif abs(self.x - 625) < speed and abs(self.y - 275) < speed:
+                self.dx, self.dy = 0, speed
+            elif abs(self.x - 625) < speed and abs(self.y - 425) < speed:
+                self.dx, self.dy = -speed, 0
+            elif abs(self.x - 475) < speed and abs(self.y - 425) < speed:
+                self.dx, self.dy = 0, -speed
+        
+        elif self.lvl == 7: # Path movement (Chạy quanh ô vuông)
             self.x += self.dx
             self.y += self.dy
             cx, cy = round(self.x), round(self.y)
-            if cx == 475 and cy == 275: self.dx, self.dy = 1.5, 0
-            elif cx == 625 and cy == 275: self.dx, self.dy = 0, 1.5
-            elif cx == 625 and cy == 425: self.dx, self.dy = -1.5, 0
-            elif cx == 475 and cy == 425: self.dx, self.dy = 0, -1.5
-        else: # Orbital (3, 4, 5)
+            if cx in [426, 574, 576] and cy in [124, 174, 274, 424]: self.dx, self.dy = 0, 4
+            elif cx == 426 and cy in [276, 426, 576]: self.dx, self.dy = -4, 0
+            elif cx == 574 and cy in [276, 426, 576]: self.dx, self.dy = 4, 0
+            elif cx in [274, 424, 726] and cy in [276, 426, 526, 576]: self.dx, self.dy = 0, -4
+            elif cx == 274 and cy in [124, 274, 424]: self.dx, self.dy = 4, 0
+            elif cx == 726 and cy in [124, 274, 424]: self.dx, self.dy = -4, 0
+
+        elif self.lvl == 8: # Logic đổi hướng tại các biên
+            if self.dx != 0 or self.dy != 0:
+                self.x += self.dx
+                self.y += self.dy
+                cx, cy = round(self.x), round(self.y)
+                if cx in [175, 375, 575, 775, 975] and cy in [125, 225, 425, 525]: self.dx, self.dy = 0, 5
+                elif cx in [175, 375, 575, 775, 975] and cy in [175, 275, 475, 575]: self.dx, self.dy = -5, 0
+                elif cx in [125, 325, 525, 725, 925] and cy in [175, 275, 475, 575]: self.dx, self.dy = 0, -5
+                elif cx in [125, 325, 525, 725, 925] and cy in [125, 225, 425, 525]: self.dx, self.dy = 5, 0
+
+        elif self.lvl == 9: # Linear va chạm biên
+            self.x += self.dx
+            self.y += self.dy
+            if self.dx != 0:
+                if self.x <= 314 or self.x >= 736: self.dx *= -1
+            if self.dy != 0:
+                if self.y <= 514 or self.y >= 586: self.dy *= -1
+
+        elif self.lvl == 10: # Orbital tăng tốc
+            self.speed_rot = min(self.speed_rot + 0.0001, 0.05) # Giả lập tăng tốc độ xoay
+            # Sử dụng góc tích lũy riêng để không bị giật
+            new_angle = angle * self.speed_rot * 40 
+            self.x = self.start_x + self.radius * math.cos(new_angle + self.angle_offset)
+            self.y = self.start_y + self.radius * math.sin(new_angle + self.angle_offset)
+            
+        else: # Orbital mặc định (3, 4, 5)
             self.x = self.start_x + self.radius * math.cos(angle + self.angle_offset)
             self.y = self.start_y + self.radius * math.sin(angle + self.angle_offset)
 
@@ -416,6 +603,237 @@ def generate_project_summary(input_path=INPUT_PATH, output_path=OUTPUT_PATH):
 
 if __name__ == "__main__":
     generate_project_summary()
+
+----------------------------------------
+
+--- File: train.py ---
+import pygame
+import random
+import math
+import sys
+import os
+from settings import *
+from sprites import Player, Enemy
+from level_manager import LevelManager
+
+# --- Cấu hình Giải thuật Di truyền ---
+POPULATION_SIZE = 500
+GENES_PER_STEP = 400  # Số bước khởi đầu
+MUTATION_RATE = 0.05
+ELITISM_COUNT = 4
+DNA_INCREASE_RATE = 50  # Số gene tăng thêm mỗi 10 thế hệ
+
+class Genome:
+    def __init__(self, length):
+        self.genes = []
+        for _ in range(length):
+            angle = random.uniform(0, 2 * math.pi)
+            self.genes.append((math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED))
+        self.fitness = 0
+        self.is_dead = False
+        self.reached_finish = False
+        self.current_step = 0
+        self.coins_collected = 0  
+
+class TrainVisualizer:
+    def __init__(self, level):
+        pygame.init()
+        self.level = level
+        self.config = LevelManager.get_config(level)
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption(f"AI Trainer Level {level} - Sequential Coins")
+        self.clock = pygame.time.Clock()
+        self.font = pygame.font.SysFont("Arial", 18, bold=True)
+        self.num_font = pygame.font.SysFont("Arial", 14, bold=True)
+
+        # 1. Tạo Mask tường
+        surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        if self.config["walls_pts"]:
+            pygame.draw.polygon(surf, BLACK, self.config["walls_pts"], WALL_WIDTH) 
+        self.wall_mask = pygame.mask.from_surface(surf) 
+
+        # 2. Định nghĩa vị trí Coin cho Level 0
+        if level == 0:
+            self.custom_coins = [
+                {"pos": (325, 475), "type": "RED"},    
+                {"pos": (775, 225), "type": "RED"},
+                {"pos": (825, 225), "type": "RED"}  
+            ]
+        if level == 1:
+            self.custom_coins = [
+                {"pos": (550, 350), "type": "YELLOW"},
+                {"pos": (825, 350), "type": "RED"}  
+            ]
+        self.target_pos = pygame.Vector2(self.config["finish_rect"].center)
+        self.generation = 0
+        self.setup_generation()
+
+    def setup_generation(self):
+        global GENES_PER_STEP
+        
+        # Tự động tăng DNA sau mỗi 10 thế hệ
+        if self.generation > 0 and self.generation % 10 == 0:
+            GENES_PER_STEP += DNA_INCREASE_RATE
+            print(f"--- Generation {self.generation}: DNA increased to {GENES_PER_STEP} steps ---")
+
+        if self.generation == 0:
+            self.population = [Genome(GENES_PER_STEP) for _ in range(POPULATION_SIZE)]
+        
+        self.players = [Player(*self.config["player_pos"]) for _ in range(POPULATION_SIZE)]
+        self.enemies = [Enemy(e, self.level) for e in self.config["enemies"]]
+        self.current_frame = 0
+        self.angle = 0
+        self.generation += 1
+
+    def run(self):
+        running = True
+        while running:
+            self.screen.fill(BG_L_BLUE)
+            
+            # Vẽ Map
+            pygame.draw.rect(self.screen, GREEN_FINISH, self.config["finish_rect"])
+            for cell in self.config["grid_cells"]:
+                pygame.draw.rect(self.screen, WHITE, (cell[0], cell[1], 50, 50))
+            if self.config["walls_pts"]:
+                pygame.draw.polygon(self.screen, BLACK, self.config["walls_pts"], WALL_WIDTH)
+
+            # Vẽ các Coin tuần tự
+            for i, c_data in enumerate(self.custom_coins):
+                color = RED if c_data["type"] == "RED" else YELLOW_COIN
+                pygame.draw.circle(self.screen, color, c_data["pos"], 10)
+                pygame.draw.circle(self.screen, BLACK, c_data["pos"], 10, 2)
+                lbl = self.num_font.render(str(i+1), True, BLACK)
+                self.screen.blit(lbl, (c_data["pos"][0]-5, c_data["pos"][1]-25))
+
+            active_players = False
+            self.angle += 0.05
+            for en in self.enemies: en.update(self.angle)
+
+            for i in range(POPULATION_SIZE):
+                genome = self.population[i]
+                player = self.players[i]
+
+                if not genome.is_dead and not genome.reached_finish:
+                    active_players = True
+                    # Kiểm tra an toàn chỉ số mảng
+                    if self.current_frame < len(genome.genes):
+                        dx, dy = genome.genes[self.current_frame]
+                        player.move(dx, dy, self.wall_mask)
+
+                    player_center = pygame.Vector2(player.rect.center)
+
+                    # Kiểm tra va chạm kẻ địch
+                    for en in self.enemies:
+                        enemy_pos = pygame.Vector2(en.x, en.y)
+                        if player_center.distance_to(enemy_pos) < (ENEMY_RADIUS + PLAYER_SIZE / 2):
+                            genome.is_dead = True
+                            genome.current_step = self.current_frame
+
+                    # Kiểm tra ăn Coin theo đúng thứ tự
+                    if genome.coins_collected < len(self.custom_coins):
+                        c_pos = pygame.Vector2(self.custom_coins[genome.coins_collected]["pos"])
+                        if player_center.distance_to(c_pos) < (10 + PLAYER_SIZE / 2):
+                            genome.coins_collected += 1
+
+                    # Kiểm tra vùng đích (chỉ khi đã ăn hết coin)
+                    if genome.coins_collected == len(self.custom_coins):
+                        if player.rect.colliderect(self.config["finish_rect"]):
+                            genome.reached_finish = True
+                            genome.current_step = self.current_frame
+                            self.save_achievement()
+
+                # Vẽ nhân vật
+                p_color = RED if not genome.is_dead else (100, 100, 100)
+                pygame.draw.rect(self.screen, p_color, player.rect)
+                pygame.draw.rect(self.screen, BLACK, player.rect, 1)
+
+            for en in self.enemies: en.draw(self.screen) 
+
+            # Hiển thị UI
+            ui = f"GEN: {self.generation} | DNA: {GENES_PER_STEP} | BEST COINS: {max(g.coins_collected for g in self.population)}"
+            self.screen.blit(self.font.render(ui, True, BLACK), (20, 10))
+            
+            self.current_frame += 1
+            if self.current_frame >= GENES_PER_STEP or not active_players:
+                self.evolve()
+                self.setup_generation()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT: running = False
+
+            pygame.display.flip()
+            self.clock.tick(120)
+        pygame.quit()
+
+    def calculate_fitness(self, genome, player):
+        # Thưởng lớn cho số lượng coin ăn được
+        fitness = genome.coins_collected * 2000
+        
+        # Chọn mục tiêu hiện tại (Coin tiếp theo hoặc Đích)
+        if genome.coins_collected < len(self.custom_coins):
+            target = pygame.Vector2(self.custom_coins[genome.coins_collected]["pos"])
+        else:
+            target = self.target_pos
+        
+        dist = pygame.Vector2(player.rect.center).distance_to(target)
+        fitness += (1 / (dist + 1)) * 1000
+        
+        if genome.reached_finish:
+            fitness += (GENES_PER_STEP - genome.current_step) + 5000
+            
+        return fitness
+
+    def evolve(self):
+        global GENES_PER_STEP
+        
+        for i in range(POPULATION_SIZE):
+            self.population[i].fitness = self.calculate_fitness(self.population[i], self.players[i])
+        
+        self.population.sort(key=lambda x: x.fitness, reverse=True)
+        
+        new_pop = []
+        
+        # Xử lý Elitism: Bù đắp gene nếu DNA vừa tăng
+        for i in range(ELITISM_COUNT):
+            elite = self.population[i]
+            while len(elite.genes) < GENES_PER_STEP:
+                angle = random.uniform(0, 2 * math.pi)
+                elite.genes.append((math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED))
+            new_pop.append(elite)
+        
+        # Tạo thế hệ con lai
+        while len(new_pop) < POPULATION_SIZE:
+            p1, p2 = random.choice(self.population[:10]), random.choice(self.population[:10])
+            child = Genome(GENES_PER_STEP)
+            
+            # Crossover
+            parent_dna_len = len(p1.genes)
+            cp = random.randint(0, parent_dna_len)
+            child_dna = p1.genes[:cp] + p2.genes[cp:]
+            
+            # Bù đắp các gene còn thiếu do tăng DNA
+            while len(child_dna) < GENES_PER_STEP:
+                angle = random.uniform(0, 2 * math.pi)
+                child_dna.append((math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED))
+            
+            # Đột biến (Mutation)
+            for j in range(len(child_dna)):
+                if random.random() < MUTATION_RATE:
+                    angle = random.uniform(0, 2 * math.pi)
+                    child_dna[j] = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
+            
+            child.genes = child_dna
+            new_pop.append(child)
+            
+        self.population = new_pop
+
+    def save_achievement(self):
+        with open("archivement.txt", "a", encoding="utf-8") as f:
+            f.write(f"Level {self.level}: Win at Gen {self.generation} | DNA: {GENES_PER_STEP}\n")
+
+if __name__ == "__main__":
+    trainer = TrainVisualizer(level=0)
+    trainer.run()
 
 ----------------------------------------
 

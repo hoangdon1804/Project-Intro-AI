@@ -48,16 +48,25 @@ class Game:
 
         # Cập nhật enemy và check chết
         self.angle += 0.05
+        player_center = pygame.Vector2(self.player.rect.center)
         for en in self.enemies:
             en.update(self.angle)
-            if self.player.rect.inflate(-12, -12).collidepoint(en.x, en.y):
+            enemy_pos = pygame.Vector2(en.x, en.y)
+            distance = player_center.distance_to(enemy_pos)
+            
+            # Va chạm xảy ra khi khoảng cách nhỏ hơn (bán kính kẻ thù + nửa cạnh người chơi)
+            # Bán kính kẻ thù là ENEMY_RADIUS (10), nửa cạnh người chơi là PLAYER_SIZE/2 (15)
+            if distance < (ENEMY_RADIUS + PLAYER_SIZE / 2):
                 self.deaths += 1
                 self.load_level()
                 return
-
         # Check ăn coin
         for c in self.coins[:]:
-            if self.player.rect.colliderect(c.rect):
+            coin_pos = pygame.Vector2(c.pos)
+            distance = player_center.distance_to(coin_pos)
+            
+            # Bán kính coin là 10, nửa cạnh người chơi là 15
+            if distance < (10 + PLAYER_SIZE / 2):
                 self.coins.remove(c)
                 self.current_coins += 1
 
@@ -114,5 +123,5 @@ class Game:
 
 if __name__ == "__main__":
     # Thay đổi level bắt đầu ở đây
-    game = Game(start_level=7) 
+    game = Game(start_level=0) 
     game.run()

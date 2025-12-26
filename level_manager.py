@@ -11,7 +11,7 @@ class LevelManager:
         }
 
         if lvl == 0:
-            config["enemies"] = [[325,325,3,0], [325,425,3,0], [775,275,-3,0], [775,375,-3,0]]
+            config["enemies"] = [[325,325,6,0], [325,425,6,0], [775,275,-6,0], [775,375,-6,0]]
             config["walls_pts"] = [(250,450), (250,200), (100,200), (100,500), (350,500), (350,450), (800,450), (800,250), (850,250), (850,500), (1000,500), (1000,200), (750,200), (750,250), (300,250), (300,450)]
             config["finish_rect"] = pygame.Rect(850, 200, 150, 300)
             # Grid Level 0
@@ -20,7 +20,7 @@ class LevelManager:
             config["grid_cells"] += [(250,450), (800,200)]
 
         elif lvl == 1:
-            config["enemies"] = [[x, 226, 0, 2] for x in range(275, 875, 100)] + [[x, 474, 0, -2] for x in range(325, 925, 100)]
+            config["enemies"] = [[x, 226, 0, 3] for x in range(275, 875, 100)] + [[x, 474, 0, -3] for x in range(325, 925, 100)]
             config["walls_pts"] = [(250,400), (100,400), (100,300), (250,300), (250,200), (850,200), (850,300), (1000,300), (1000,400), (850,400), (850,500), (250,500)]
             config["finish_rect"] = pygame.Rect(850, 300, 150, 100)
             config["coins"] = [[550, 350]]; config["coins_req"] = 1
@@ -29,9 +29,22 @@ class LevelManager:
             for x in range(250, 800, 100): config["grid_cells"] += [(x, 250), (x, 350), (x, 450)]
 
         elif lvl == 2:
+            MOVE_SPEED = 3.0 
+            
+            config["enemies"] = [
+                [526, 275, MOVE_SPEED, 0],   
+                [574, 275, MOVE_SPEED, 0],   
+                [625, 275, 0, MOVE_SPEED],   
+                [625, 326, 0, MOVE_SPEED],   
+                [625, 374, 0, MOVE_SPEED],   
+                [625, 425, -MOVE_SPEED, 0],  
+                [574, 425, -MOVE_SPEED, 0],  
+                [526, 425, -MOVE_SPEED, 0],  
+                [475, 425, 0, -MOVE_SPEED],  
+                [475, 374, 0, -MOVE_SPEED]
+            ]
             config["player_pos"] = (550-15, 350-15)
             config["finish_rect"] = pygame.Rect(500, 300, 100, 100)
-            config["enemies"] = [[526,275,1.5,0], [574,275,1.5,0], [625,275,0,1.5], [625,326,0,1.5], [625,374,0,1.5], [625,425,-1.5,0], [574,425,-1.5,0], [526,425,-1.5,0], [475,425,0,-1.5], [475,374,0,-1.5]]
             config["walls_pts"] = [(500,250), (650,250), (650,450), (450,450), (450,200), (500,200)]
             config["coins"] = [[475, 225]]; config["coins_req"] = 1
             # Grid Level 2
