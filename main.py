@@ -64,7 +64,9 @@ class Game:
         # Check checkpoint
         for cp in self.checkpoints:
             if cp.colliderect(self.player.rect):
-                self.checkpoint_pos = (cp.x + (cp.width-PLAYER_SIZE)//2, cp.y + (cp.height-PLAYER_SIZE)//2)
+                new_cp = (cp.x + (cp.width-PLAYER_SIZE)//2, cp.y + (cp.height-PLAYER_SIZE)//2)
+                if self.checkpoint_pos != new_cp:
+                    self.checkpoint_pos = new_cp
 
         # Check về đích
         if self.finish_rect.colliderect(self.player.rect) and self.current_coins >= self.coins_req:
@@ -112,5 +114,5 @@ class Game:
 
 if __name__ == "__main__":
     # Thay đổi level bắt đầu ở đây
-    game = Game(start_level=3) 
+    game = Game(start_level=7) 
     game.run()
