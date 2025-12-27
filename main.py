@@ -47,7 +47,7 @@ class Game:
         if dx != 0 or dy != 0: self.player.move(dx, dy, self.wall_mask)
 
         # Cập nhật enemy và check chết
-        self.angle += 0.05
+        self.angle += 0.03
         player_center = pygame.Vector2(self.player.rect.center)
         for en in self.enemies:
             en.update(self.angle)
@@ -123,5 +123,5 @@ class Game:
 
 if __name__ == "__main__":
     # Thay đổi level bắt đầu ở đây
-    game = Game(start_level=0) 
+    game = Game(start_level=3) 
     game.run()

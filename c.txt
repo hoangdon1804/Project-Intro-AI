@@ -8,18 +8,18 @@ from sprites import Player, Enemy
 from level_manager import LevelManager
 
 # --- Cấu hình Giải thuật Di truyền ---
-POPULATION_SIZE = 1000
-GENES_PER_STEP = 400 
+POPULATION_SIZE = 60
+GENES_PER_STEP = 1000  
 MUTATION_RATE = 0.05
 ELITISM_COUNT = 4
-DNA_INCREASE_RATE = 100  # Tăng DNA sau mỗi 10 thế hệ
+DNA_INCREASE_RATE = 50  # Tăng DNA sau mỗi 10 thế hệ
 
 class Genome:
     def __init__(self, length):
         self.genes = []
         last_gene = None
         for _ in range(length):
-            # 10% cơ hội đổi hướng để di chuyển mượt hơn 
+            # 10% cơ hội đổi hướng để di chuyển mượt hơn (giống logic C#)
             if last_gene is None or random.random() < 0.1:
                 angle = random.uniform(0, 2 * math.pi)
                 last_gene = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
@@ -42,11 +42,13 @@ class TrainVisualizer:
         self.font = pygame.font.SysFont("Arial", 18, bold=True)
         self.num_font = pygame.font.SysFont("Arial", 14, bold=True)
 
+        # 1. Tạo Mask tường
         surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         if self.config["walls_pts"]:
             pygame.draw.polygon(surf, BLACK, self.config["walls_pts"], WALL_WIDTH) 
         self.wall_mask = pygame.mask.from_surface(surf) 
 
+        # 2. Định nghĩa Coin dẫn đường (RED/YELLOW) cho từng Level
         self.custom_coins = []
         if level == 0:
             self.custom_coins = [
@@ -62,12 +64,7 @@ class TrainVisualizer:
             self.custom_coins = [
                 {"pos": (475, 225), "type": "YELLOW"}
             ]
-        elif level == 3:
-            self.custom_coins = [
-                {"pos": (550, 250), "type": "YELLOW"},
-                {"pos": (700, 400), "type": "YELLOW"},
-                {"pos": (550, 550), "type": "YELLOW"}
-            ]
+        
         self.target_pos = pygame.Vector2(self.config["finish_rect"].center)
         self.generation = 0
         self.setup_generation()
@@ -119,7 +116,7 @@ class TrainVisualizer:
                 self.screen.blit(lbl, (c_data["pos"][0]-5, c_data["pos"][1]-25))
 
             active_players = False
-            self.angle += 0.025
+            self.angle += 0.05
             for en in self.enemies: en.update(self.angle)
 
             for i in range(POPULATION_SIZE):
@@ -209,7 +206,7 @@ class TrainVisualizer:
         # Đột biến nhẹ các bước cuối của cá thể chết để tìm hướng thoát
         for genome in self.population:
             if genome.is_dead:
-                start_mutate = max(0, genome.current_step - 10)
+                start_mutate = max(0, genome.current_step - 5)
                 for j in range(start_mutate, genome.current_step):
                     angle = random.uniform(0, 2 * math.pi)
                     genome.genes[j] = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
@@ -261,5 +258,5 @@ class TrainVisualizer:
 
 if __name__ == "__main__":
     # Bắt đầu huấn luyện (Thay đổi level tại đây)
-    trainer = TrainVisualizer(level=3)
+    trainer = TrainVisualizer(level=2)
     trainer.run()

@@ -34,7 +34,7 @@ class LevelManager:
         }
 
         if lvl == 0:
-            config["enemies"] = [[325,325,4,0], [325,425,4,0], [775,275,-4,0], [775,375,-4,0]]
+            config["enemies"] = [[325,325,6,0], [325,425,6,0], [775,275,-6,0], [775,375,-6,0]]
             config["walls_pts"] = [(250,450), (250,200), (100,200), (100,500), (350,500), (350,450), (800,450), (800,250), (850,250), (850,500), (1000,500), (1000,200), (750,200), (750,250), (300,250), (300,450)]
             config["finish_rect"] = pygame.Rect(850, 200, 150, 300)
             # Grid Level 0
@@ -43,7 +43,7 @@ class LevelManager:
             config["grid_cells"] += [(250,450), (800,200)]
 
         elif lvl == 1:
-            config["enemies"] = [[x, 226, 0, 4] for x in range(275, 875, 100)] + [[x, 474, 0, -4] for x in range(325, 925, 100)]
+            config["enemies"] = [[x, 226, 0, 3] for x in range(275, 875, 100)] + [[x, 474, 0, -3] for x in range(325, 925, 100)]
             config["walls_pts"] = [(250,400), (100,400), (100,300), (250,300), (250,200), (850,200), (850,300), (1000,300), (1000,400), (850,400), (850,500), (250,500)]
             config["finish_rect"] = pygame.Rect(850, 300, 150, 100)
             config["coins"] = [[550, 350]]; config["coins_req"] = 1
@@ -341,7 +341,7 @@ import pygame
 WIDTH, HEIGHT = 1100, 700
 FPS = 60
 PLAYER_SIZE = 30
-PLAYER_SPEED = 2.5
+PLAYER_SPEED = 3
 ENEMY_RADIUS = 10
 WALL_WIDTH = 5
 
@@ -617,8 +617,8 @@ from sprites import Player, Enemy
 from level_manager import LevelManager
 
 # --- Cấu hình Giải thuật Di truyền ---
-POPULATION_SIZE = 500
-GENES_PER_STEP = 400  # Số bước khởi đầu
+POPULATION_SIZE = 1000
+GENES_PER_STEP = 500  # Số bước khởi đầu
 MUTATION_RATE = 0.05
 ELITISM_COUNT = 4
 DNA_INCREASE_RATE = 50  # Số gene tăng thêm mỗi 10 thế hệ
@@ -626,14 +626,20 @@ DNA_INCREASE_RATE = 50  # Số gene tăng thêm mỗi 10 thế hệ
 class Genome:
     def __init__(self, length):
         self.genes = []
+        last_gene = None
         for _ in range(length):
-            angle = random.uniform(0, 2 * math.pi)
-            self.genes.append((math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED))
+            # 10% cơ hội đổi hướng hoặc là gene đầu tiên
+            if last_gene is None or random.random() < 0.1:
+                angle = random.uniform(0, 2 * math.pi)
+                last_gene = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
+            
+            self.genes.append(last_gene)
+            
         self.fitness = 0
         self.is_dead = False
         self.reached_finish = False
         self.current_step = 0
-        self.coins_collected = 0  
+        self.coins_collected = 0
 
 class TrainVisualizer:
     def __init__(self, level):
@@ -664,17 +670,29 @@ class TrainVisualizer:
                 {"pos": (550, 350), "type": "YELLOW"},
                 {"pos": (825, 350), "type": "RED"}  
             ]
+        if level == 2:
+            self.custom_coins = [
+                {"pos": (475, 225), "type": "YELLOW"}
+            ]
         self.target_pos = pygame.Vector2(self.config["finish_rect"].center)
         self.generation = 0
         self.setup_generation()
 
     def setup_generation(self):
         global GENES_PER_STEP
-        
-        # Tự động tăng DNA sau mỗi 10 thế hệ
         if self.generation > 0 and self.generation % 10 == 0:
             GENES_PER_STEP += DNA_INCREASE_RATE
             print(f"--- Generation {self.generation}: DNA increased to {GENES_PER_STEP} steps ---")
+            
+            # Bổ sung gene còn thiếu cho quần thể hiện tại
+            for genome in self.population:
+                while len(genome.genes) < GENES_PER_STEP:
+                    # Lấy hướng của gene cuối cùng làm gốc
+                    last_gene = genome.genes[-1] if genome.genes else None
+                    if last_gene is None or random.random() < 0.1:
+                        angle = random.uniform(0, 2 * math.pi)
+                        last_gene = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
+                    genome.genes.append(last_gene)
 
         if self.generation == 0:
             self.population = [Genome(GENES_PER_STEP) for _ in range(POPULATION_SIZE)]
@@ -765,6 +783,8 @@ class TrainVisualizer:
             self.clock.tick(120)
         pygame.quit()
 
+    # Trong file train.py
+
     def calculate_fitness(self, genome, player):
         # Thưởng lớn cho số lượng coin ăn được
         fitness = genome.coins_collected * 2000
@@ -780,25 +800,41 @@ class TrainVisualizer:
         
         if genome.reached_finish:
             fitness += (GENES_PER_STEP - genome.current_step) + 5000
+
+        # --- THAY ĐỔI: Trừ 10% điểm nếu bị chết (giống C#) ---
+        if genome.is_dead:
+            fitness *= 0.9 
             
         return fitness
 
     def evolve(self):
-        global GENES_PER_STEP
-        
+        # --- THAY ĐỔI: Đột biến mạnh 5 bước cuối của các cá thể chết trước khi chọn lọc ---
+        for genome in self.population:
+            if genome.is_dead:
+                death_step = genome.current_step
+                # Xác định vị trí bắt đầu đột biến (tối đa 5 bước trước khi chết)
+                start_mutate = max(0, death_step - 5)
+                for j in range(start_mutate, death_step):
+                    angle = random.uniform(0, 2 * math.pi)
+                    genome.genes[j] = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
+
+        # Sau đó mới tính fitness và sắp xếp như cũ
         for i in range(POPULATION_SIZE):
             self.population[i].fitness = self.calculate_fitness(self.population[i], self.players[i])
         
         self.population.sort(key=lambda x: x.fitness, reverse=True)
-        
+            
         new_pop = []
         
-        # Xử lý Elitism: Bù đắp gene nếu DNA vừa tăng
+        # 1. Đối với Elitism (Cá thể ưu tú)
         for i in range(ELITISM_COUNT):
             elite = self.population[i]
             while len(elite.genes) < GENES_PER_STEP:
-                angle = random.uniform(0, 2 * math.pi)
-                elite.genes.append((math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED))
+                last_gene = elite.genes[-1] if elite.genes else None
+                if last_gene is None or random.random() < 0.1:
+                    angle = random.uniform(0, 2 * math.pi)
+                    last_gene = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
+                elite.genes.append(last_gene)
             new_pop.append(elite)
         
         # Tạo thế hệ con lai
@@ -813,8 +849,11 @@ class TrainVisualizer:
             
             # Bù đắp các gene còn thiếu do tăng DNA
             while len(child_dna) < GENES_PER_STEP:
-                angle = random.uniform(0, 2 * math.pi)
-                child_dna.append((math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED))
+                last_gene = child_dna[-1] if child_dna else None
+                if last_gene is None or random.random() < 0.1:
+                    angle = random.uniform(0, 2 * math.pi)
+                    last_gene = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
+                child_dna.append(last_gene)
             
             # Đột biến (Mutation)
             for j in range(len(child_dna)):
@@ -832,7 +871,7 @@ class TrainVisualizer:
             f.write(f"Level {self.level}: Win at Gen {self.generation} | DNA: {GENES_PER_STEP}\n")
 
 if __name__ == "__main__":
-    trainer = TrainVisualizer(level=0)
+    trainer = TrainVisualizer(level=1)
     trainer.run()
 
 ----------------------------------------
