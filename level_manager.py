@@ -20,7 +20,7 @@ class LevelManager:
             config["grid_cells"] += [(250,450), (800,200)]
 
         elif lvl == 1:
-            config["enemies"] = [[x, 226, 0, 3] for x in range(275, 875, 100)] + [[x, 474, 0, -3] for x in range(325, 925, 100)]
+            config["enemies"] = [[x, 226, 0, 6] for x in range(275, 875, 100)] + [[x, 474, 0, -6] for x in range(325, 925, 100)]
             config["walls_pts"] = [(250,400), (100,400), (100,300), (250,300), (250,200), (850,200), (850,300), (1000,300), (1000,400), (850,400), (850,500), (250,500)]
             config["finish_rect"] = pygame.Rect(850, 300, 150, 100)
             config["coins"] = [[550, 350]]; config["coins_req"] = 1

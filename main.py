@@ -123,5 +123,5 @@ class Game:
 
 if __name__ == "__main__":
     # Thay đổi level bắt đầu ở đây
-    game = Game(start_level=3) 
+    game = Game(start_level=1) 
     game.run()

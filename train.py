@@ -1,6 +1,7 @@
 import pygame
 import random
 import math
+import json
 import sys
 import os
 from settings import *
@@ -9,10 +10,10 @@ from level_manager import LevelManager
 
 # --- Cấu hình Giải thuật Di truyền ---
 POPULATION_SIZE = 1000
-GENES_PER_STEP = 400 
+GENES_PER_STEP = 300 
 MUTATION_RATE = 0.05
-ELITISM_COUNT = 4
-DNA_INCREASE_RATE = 100  # Tăng DNA sau mỗi 10 thế hệ
+ELITISM_COUNT = 10
+DNA_INCREASE_RATE = 50  # Tăng DNA sau mỗi 10 thế hệ
 
 class Genome:
     def __init__(self, length):
@@ -55,6 +56,7 @@ class TrainVisualizer:
             ]
         elif level == 1:
             self.custom_coins = [
+                {"pos": (275, 350), "type": "RED"},
                 {"pos": (550, 350), "type": "YELLOW"},
                 {"pos": (825, 350), "type": "RED"}
             ]
@@ -65,10 +67,14 @@ class TrainVisualizer:
         elif level == 3:
             self.custom_coins = [
                 {"pos": (550, 250), "type": "YELLOW"},
+                {"pos": (625, 325), "type": "RED"},
                 {"pos": (700, 400), "type": "YELLOW"},
-                {"pos": (550, 550), "type": "YELLOW"}
+                {"pos": (625, 475), "type": "RED"},
+                {"pos": (550, 550), "type": "YELLOW"},
+                {"pos": (375, 425), "type": "RED"}
             ]
         self.target_pos = pygame.Vector2(self.config["finish_rect"].center)
+        self.finished = False
         self.generation = 0
         self.setup_generation()
 
@@ -76,7 +82,7 @@ class TrainVisualizer:
         global GENES_PER_STEP
         
         # Tăng DNA sau mỗi 10 thế hệ
-        if self.generation > 0 and self.generation % 10 == 0:
+        if self.generation > 0 and self.generation % 15 == 0:
             GENES_PER_STEP += DNA_INCREASE_RATE
             print(f"--- Gen {self.generation}: DNA increased to {GENES_PER_STEP} ---")
             
@@ -154,7 +160,7 @@ class TrainVisualizer:
                             if self.current_frame > 5:
                                 genome.reached_finish = True
                                 genome.current_step = self.current_frame
-                                self.save_achievement()
+                                self.finished = True
 
                 p_color = RED if not genome.is_dead else (100, 100, 100)
                 pygame.draw.rect(self.screen, p_color, player.rect)
@@ -167,8 +173,16 @@ class TrainVisualizer:
             
             self.current_frame += 1
             if self.current_frame >= GENES_PER_STEP or not active_players:
-                self.evolve()
-                self.setup_generation()
+                self.evolve() # Tính fitness và tạo thế hệ mới
+                
+                if self.finished:
+                    # Nếu có người thắng trong thế hệ này, tìm người tốt nhất và lưu
+                    best_genome = max(self.population, key=lambda g: g.fitness)
+                    self.save_achievement(best_genome)
+                    print(f"CONGRATULATIONS! Level {self.level} cleared. Training stopped.")
+                    running = False # Thoát vòng lặp chính
+                else:
+                    self.setup_generation()
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT: running = False
@@ -176,6 +190,7 @@ class TrainVisualizer:
             pygame.display.flip()
             self.clock.tick(120)
         pygame.quit()
+
 
     def calculate_fitness(self, genome, player):
         # Thưởng theo số coin đã ăn
@@ -201,18 +216,29 @@ class TrainVisualizer:
             fitness += (GENES_PER_STEP - genome.current_step) + 5000
 
         if genome.is_dead:
-            fitness *= 0.9 
+            fitness *= 0.8 
             
         return fitness
 
     def evolve(self):
-        # Đột biến nhẹ các bước cuối của cá thể chết để tìm hướng thoát
+        cnt = 0
+        # Đột biến có tính kế thừa cho các cá thể chết [cite: 130]
         for genome in self.population:
             if genome.is_dead:
-                start_mutate = max(0, genome.current_step - 10)
+                # Xác định điểm bắt đầu đột biến (20 bước trước khi chết) [cite: 130]
+                start_mutate = max(1, genome.current_step - 10) 
+                
+                # Lấy gene làm mốc từ trước đoạn đột biến để đảm bảo tính liên tục 
+                last_gene = genome.genes[start_mutate - 1]
+                
                 for j in range(start_mutate, genome.current_step):
-                    angle = random.uniform(0, 2 * math.pi)
-                    genome.genes[j] = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
+                    # 10% cơ hội đổi hướng so với bước trước đó 
+                    if random.random() < 0.1:
+                        angle = random.uniform(0, 2 * math.pi)
+                        last_gene = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
+                    
+                    # Gán gene (có thể là hướng mới hoặc hướng cũ của j-1) 
+                    genome.genes[j] = last_gene
 
         for i in range(POPULATION_SIZE):
             self.population[i].fitness = self.calculate_fitness(self.population[i], self.players[i])
@@ -230,7 +256,6 @@ class TrainVisualizer:
                     last_gene = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
                 elite.genes.append(last_gene)
             new_pop.append(elite)
-        
         # Crossover & Mutation
         while len(new_pop) < POPULATION_SIZE:
             p1, p2 = random.choice(self.population[:10]), random.choice(self.population[:10])
@@ -244,20 +269,54 @@ class TrainVisualizer:
                     angle = random.uniform(0, 2 * math.pi)
                     last_gene = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
                 child_dna.append(last_gene)
-            
-            for j in range(len(child_dna)):
-                if random.random() < MUTATION_RATE:
-                    angle = random.uniform(0, 2 * math.pi)
-                    child_dna[j] = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
-            
+            if cnt < POPULATION_SIZE * 0.2:
+                for j in range(len(child_dna)):
+                    if random.random() < MUTATION_RATE:
+                        angle = random.uniform(0, 2 * math.pi)
+                        child_dna[j] = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
+            cnt = cnt + 1   
             child.genes = child_dna
             new_pop.append(child)
             
         self.population = new_pop
 
-    def save_achievement(self):
-        with open("archivement.txt", "a", encoding="utf-8") as f:
-            f.write(f"Level {self.level}: Win at Gen {self.generation} | DNA: {GENES_PER_STEP}\n")
+    def save_achievement(self, best_genome):
+        file_path = "archivement.txt"
+        achievements = {}
+
+        # 1. Đọc dữ liệu cũ nếu file tồn tại
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    achievements = json.load(f)
+            except:
+                achievements = {}
+
+        # 2. Chuẩn bị dữ liệu mới
+        new_data = {
+            "level": self.level,
+            "generation": self.generation,
+            "population_size": POPULATION_SIZE,
+            "dna_length": len(best_genome.genes),
+            "fitness": best_genome.fitness,
+            "dna": best_genome.genes # Lưu list các tuple (dx, dy)
+        }
+
+        # 3. Kiểm tra level đã tồn tại chưa
+        lvl_key = str(self.level)
+        if lvl_key in achievements:
+            if best_genome.fitness > achievements[lvl_key]["fitness"]:
+                achievements[lvl_key] = new_data
+                print(f"Updated Level {self.level} with higher fitness: {best_genome.fitness}")
+            else:
+                print(f"Level {self.level} already has a better record. Skipping save.")
+        else:
+            achievements[lvl_key] = new_data
+            print(f"Saved new record for Level {self.level}")
+
+        # 4. Ghi lại vào file (dùng định dạng JSON để dễ đọc/ghi DNA)
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(achievements, f, indent=4)
 
 if __name__ == "__main__":
     # Bắt đầu huấn luyện (Thay đổi level tại đây)
