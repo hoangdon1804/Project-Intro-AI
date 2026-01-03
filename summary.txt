@@ -6,14 +6,12 @@ Root directory: D:\PRJqq
 
 PRJqq/
     |-- archivement.txt
-    |-- c.txt
     |-- level_manager.py
     |-- main.py
     |-- replay.py
     |-- script.js
     |-- settings.py
     |-- sprites.py
-    |-- summary.txt
     |-- test.py
     |-- train.py
 |-- __pycache__/
@@ -256,37 +254,32 @@ class Game:
         if dx != 0 or dy != 0: self.player.move(dx, dy, self.wall_mask)
 
         # Cập nhật enemy và check chết
-        self.angle += 0.03
+        self.angle += 0.025
         player_center = pygame.Vector2(self.player.rect.center)
         for en in self.enemies:
             en.update(self.angle)
             enemy_pos = pygame.Vector2(en.x, en.y)
             distance = player_center.distance_to(enemy_pos)
             
-            # Va chạm xảy ra khi khoảng cách nhỏ hơn (bán kính kẻ thù + nửa cạnh người chơi)
-            # Bán kính kẻ thù là ENEMY_RADIUS (10), nửa cạnh người chơi là PLAYER_SIZE/2 (15)
             if distance < (ENEMY_RADIUS + PLAYER_SIZE / 2):
                 self.deaths += 1
                 self.load_level()
                 return
-        # Check ăn coin
+            
         for c in self.coins[:]:
             coin_pos = pygame.Vector2(c.pos)
             distance = player_center.distance_to(coin_pos)
             
-            # Bán kính coin là 10, nửa cạnh người chơi là 15
             if distance < (10 + PLAYER_SIZE / 2):
                 self.coins.remove(c)
                 self.current_coins += 1
 
-        # Check checkpoint
         for cp in self.checkpoints:
             if cp.colliderect(self.player.rect):
                 new_cp = (cp.x + (cp.width-PLAYER_SIZE)//2, cp.y + (cp.height-PLAYER_SIZE)//2)
                 if self.checkpoint_pos != new_cp:
                     self.checkpoint_pos = new_cp
 
-        # Check về đích
         if self.finish_rect.colliderect(self.player.rect) and self.current_coins >= self.coins_req:
             self.lvl += 1
             self.checkpoint_pos = None
@@ -332,7 +325,7 @@ class Game:
 
 if __name__ == "__main__":
     # Thay đổi level bắt đầu ở đây
-    game = Game(start_level=0) 
+    game = Game(start_level=1) 
     game.run()
 
 ----------------------------------------
@@ -342,6 +335,7 @@ import pygame
 import json
 import sys
 import os
+import math
 from settings import *
 from sprites import Player, Enemy
 from level_manager import LevelManager
@@ -352,126 +346,168 @@ class ReplayVisualizer:
         self.level = level_to_replay
         self.config = LevelManager.get_config(self.level)
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption(f"Replay Level {self.level} - The Best DNA")
+        pygame.display.set_caption(f"Replay Level {self.level} - AI Performance")
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont("Arial", 20, bold=True)
+        self.font = pygame.font.SysFont("Arial", 18, bold=True)
+        self.num_font = pygame.font.SysFont("Arial", 14, bold=True)
 
         # 1. Tải dữ liệu từ archivement.txt
         self.record_data = self.load_record()
         if not self.record_data:
-            print(f"Error: Không tìm thấy dữ liệu replay cho Level {self.level} trong archivement.txt")
+            print(f"Error: Không tìm thấy dữ liệu cho Level {self.level}")
             pygame.quit()
             sys.exit()
 
+        # Lấy thông tin trực tiếp từ file archivement.txt 
         self.best_dna = self.record_data["dna"]
-        self.dna_length = len(self.best_dna)
-        self.pop_size = self.record_data.get("pop_size", 100) # Số lượng cá thể hiển thị
+        self.pop_size = self.record_data.get("population_size", 100) 
+        self.dna_length = self.record_data.get("dna_length", len(self.best_dna))
+        
+        self.replay_limit = 5
+        self.replay_count = 0
 
-        # 2. Tạo Mask tường để xử lý va chạm
+        # 2. Tạo Mask tường để xử lý va chạm pixel [cite: 38, 51]
         surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         if self.config["walls_pts"]:
             pygame.draw.polygon(surf, BLACK, self.config["walls_pts"], WALL_WIDTH)
         self.wall_mask = pygame.mask.from_surface(surf)
 
-        # 3. Khởi tạo thực thể
-        self.players = [Player(*self.config["player_pos"]) for _ in range(self.pop_size)]
-        self.enemies = [Enemy(e, self.level) for e in self.config["enemies"]]
-        
-        # Coins (Chỉ để hiển thị cho giống môi trường train)
-        self.coins_pos = []
-        if self.level == 0: self.coins_pos = [(325, 475), (775, 225)]
-        elif self.level == 1: self.coins_pos = [(550, 350), (825, 350)]
-        elif self.level == 2: self.coins_pos = [(475, 225)]
-        elif self.level == 3: self.coins_pos = [(550, 250), (625, 325), (700, 400), (625, 475), (550, 550), (375, 425)]
+        # 3. Logic Coin (Giữ nguyên tương tự train.py để đồng bộ logic ăn coin) [cite: 102, 103, 112]
+        self.custom_coins = []
+        if self.level == 0:
+            self.custom_coins = [{"pos": (325, 475), "type": "RED"}, {"pos": (775, 225), "type": "RED"}]
+        elif self.level == 1:
+            self.custom_coins = [{"pos": (550, 350), "type": "YELLOW"}, {"pos": (825, 350), "type": "RED"}]
+        elif self.level == 2:
+            self.custom_coins = [{"pos": (475, 225), "type": "YELLOW"}]
+        elif self.level == 3:
+            self.custom_coins = [
+                {"pos": (550, 250), "type": "YELLOW"}, {"pos": (625, 325), "type": "RED"},
+                {"pos": (700, 400), "type": "YELLOW"}, {"pos": (625, 475), "type": "RED"},
+                {"pos": (550, 550), "type": "YELLOW"}, {"pos": (375, 425), "type": "RED"}
+            ]
 
-        self.current_frame = 0
-        self.angle = 0
-        self.finished = False
+        self.setup_replay()
 
     def load_record(self):
         file_path = "archivement.txt"
-        if not os.path.exists(file_path):
-            return None
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                return data.get(str(self.level))
-        except Exception as e:
-            print(f"Lỗi đọc file: {e}")
-            return None
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    return data.get(str(self.level))
+            except Exception as e:
+                print(f"Lỗi đọc file: {e}")
+        return None
+
+    def setup_replay(self):
+        # Khởi tạo tất cả player tại vị trí bắt đầu của level [cite: 36, 109]
+        self.players = [Player(*self.config["player_pos"]) for _ in range(self.pop_size)]
+        self.enemies = [Enemy(e, self.level) for e in self.config["enemies"]]
+        # Trạng thái riêng cho từng player trong quần thể
+        self.player_states = [{"dead": False, "finished": False, "coins": 0} for _ in range(self.pop_size)]
+        self.current_frame = 0
+        self.angle = 0
+        self.replay_count += 1
 
     def run(self):
         running = True
-        while running:
+        while running and self.replay_count <= self.replay_limit:
             self.screen.fill(BG_L_BLUE)
-
-            # --- Vẽ Môi Trường ---
+            
+            # Vẽ Map & Grid [cite: 45, 111]
             pygame.draw.rect(self.screen, GREEN_FINISH, self.config["finish_rect"])
             for cell in self.config["grid_cells"]:
                 pygame.draw.rect(self.screen, WHITE, (cell[0], cell[1], 50, 50))
             if self.config["walls_pts"]:
                 pygame.draw.polygon(self.screen, BLACK, self.config["walls_pts"], WALL_WIDTH)
-            for pos in self.coins_pos:
-                pygame.draw.circle(self.screen, YELLOW_COIN, pos, 10)
-                pygame.draw.circle(self.screen, BLACK, pos, 10, 2)
 
-            # --- Cập nhật logic ---
-            self.angle += 0.03
+            coins_collected = self.player_states[0]["coins"]
+
+            for i, c_data in enumerate(self.custom_coins):
+                # CHỈ vẽ những coin có chỉ số (index) lớn hơn hoặc bằng số coin đã ăn
+                if i >= coins_collected:
+                    color = RED if c_data["type"] == "RED" else YELLOW_COIN
+                    pygame.draw.circle(self.screen, color, c_data["pos"], 10)
+                    pygame.draw.circle(self.screen, BLACK, c_data["pos"], 10, 2)
+                    lbl = self.num_font.render(str(i+1), True, BLACK)
+                    self.screen.blit(lbl, (c_data["pos"][0]-5, c_data["pos"][1]-25))
+                        # Cập nhật Enemy [cite: 39, 113]
+            self.angle += 0.025
             for en in self.enemies: en.update(self.angle)
 
-            if self.current_frame < self.dna_length:
-                dx, dy = self.best_dna[self.current_frame]
-                
-                # Cập nhật tất cả player chạy cùng 1 bộ DNA
-                for p in self.players:
-                    p.move(dx, dy, self.wall_mask)
-                self.current_frame += 1
-            else:
-                self.finished = True
+            # Cập nhật tất cả Players dùng chung bộ DNA tốt nhất [cite: 58]
+            active_any = False
+            for i in range(self.pop_size):
+                state = self.player_states[i]
+                player = self.players[i]
 
-            # --- Vẽ Thực Thể ---
+                if not state["dead"] and not state["finished"]:
+                    active_any = True
+                    if self.current_frame < len(self.best_dna):
+                        dx, dy = self.best_dna[self.current_frame]
+                        player.move(dx, dy, self.wall_mask)
+                        
+                        player_center = pygame.Vector2(player.rect.center)
+
+                        # Check va chạm kẻ địch [cite: 40, 116]
+                        for en in self.enemies:
+                            enemy_pos = pygame.Vector2(en.x, en.y)
+                            if player_center.distance_to(enemy_pos) < (ENEMY_RADIUS + PLAYER_SIZE / 2):
+                                state["dead"] = True
+                        
+                        # Check ăn Coin tuần tự [cite: 42, 117]
+                        if state["coins"] < len(self.custom_coins):
+                            c_pos = pygame.Vector2(self.custom_coins[state["coins"]]["pos"])
+                            if player_center.distance_to(c_pos) < (10 + PLAYER_SIZE / 2):
+                                state["coins"] += 1
+                        
+                        # Check về đích (Chỉ tính khi ăn đủ coin) [cite: 43, 118]
+                        if state["coins"] == len(self.custom_coins):
+                            if player.rect.colliderect(self.config["finish_rect"]):
+                                state["finished"] = True
+
+                # Vẽ Player (Màu xanh dương để phân biệt với lúc train) [cite: 60]
+                p_color = (0, 150, 255) if not state["dead"] else (100, 100, 100)
+                pygame.draw.rect(self.screen, p_color, player.rect)
+                pygame.draw.rect(self.screen, BLACK, player.rect, 1)
+
             for en in self.enemies: en.draw(self.screen)
-            for p in self.players:
-                # Vẽ màu xanh cho khác với lúc train (màu đỏ)
-                pygame.draw.rect(self.screen, (0, 150, 255), p.rect)
-                pygame.draw.rect(self.screen, BLACK, p.rect, 1)
 
-            # --- UI ---
-            status = "REPLAYING..." if not self.finished else "FINISHED (Looping)"
-            ui_text = [
-                f"LEVEL: {self.level}",
-                f"STATUS: {status}",
+            # UI hiển thị thông tin [cite: 61, 122]
+            ui_texts = [
+                f"REPLAY: {self.replay_count}/{self.replay_limit}",
                 f"FRAME: {self.current_frame}/{self.dna_length}",
                 f"FITNESS: {self.record_data['fitness']:.2f}",
-                f"WON AT GEN: {self.record_data['gen']}"
+                f"POPULATION: {self.pop_size}",
+                f"WON AT GEN: {self.record_data['generation']}"
             ]
-            
-            for i, text in enumerate(ui_text):
-                img = self.font.render(text, True, BLACK)
-                self.screen.blit(img, (20, 20 + i * 25))
+            for idx, text in enumerate(ui_texts):
+                self.screen.blit(self.font.render(text, True, BLACK), (20, 10 + idx * 25))
 
-            # Nếu chạy hết DNA thì tự động reset để xem lại
-            if self.finished:
-                pygame.time.delay(1000) # Đợi 1 giây trước khi reset
-                self.current_frame = 0
-                self.angle = 0
-                self.finished = False
-                self.players = [Player(*self.config["player_pos"]) for _ in range(self.pop_size)]
+            self.current_frame += 1
+            
+            # Kiểm tra kết thúc lượt replay hoặc hết DNA
+            if not active_any or self.current_frame >= self.dna_length:
+                if self.replay_count < self.replay_limit:
+                    pygame.time.delay(1000) # Nghỉ 1 giây trước khi chạy lại [cite: 63]
+                    self.setup_replay()
+                else:
+                    print(f"Đã hoàn thành {self.replay_limit} lần replay.")
+                    running = False
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
 
             pygame.display.flip()
-            self.clock.tick(60) # Replay ở tốc độ 60 FPS cho mượt
+            self.clock.tick(120) # Chạy tốc độ cao cho đồng bộ với logic train 
 
         pygame.quit()
 
 if __name__ == "__main__":
-    # Thay đổi level bạn muốn xem lại ở đây
-    LEVEL_TO_WATCH = 0
-    
-    replay = ReplayVisualizer(level_to_replay=LEVEL_TO_WATCH)
+    # Thay đổi level muốn xem lại tại đây
+    replay = ReplayVisualizer(level_to_replay=0)
     replay.run()
 
 ----------------------------------------
@@ -759,11 +795,12 @@ from sprites import Player, Enemy
 from level_manager import LevelManager
 
 # --- Cấu hình Giải thuật Di truyền ---
-POPULATION_SIZE = 1000
-GENES_PER_STEP = 400 
-MUTATION_RATE = 0.05
-ELITISM_COUNT = 10
-DNA_INCREASE_RATE = 50  # Tăng DNA sau mỗi 10 thế hệ
+POPULATION_SIZE = 1000  # Số cá thể trong 1 thế hệ
+GENES_PER_STEP = 200    # Độ dài DNA ban đầu
+MUTATION_RATE = 0.05    # Tỉ lệ đột biến
+ELITISM_COUNT = 10      # Số cá thể tinh anh giữ lại sau mỗi thế hệ
+DNA_INCREASE_RATE = 50  # Độ dài DNA được thêm vào
+GENERATION_INCEASE_DNA = 15 # Số thế hệ để được tăng độ dài DNA
 
 class Genome:
     def __init__(self, length):
@@ -781,6 +818,7 @@ class Genome:
         self.reached_finish = False
         self.current_step = 0
         self.coins_collected = 0  
+        self.is_elite = False
 
 class TrainVisualizer:
     def __init__(self, level):
@@ -797,7 +835,7 @@ class TrainVisualizer:
         if self.config["walls_pts"]:
             pygame.draw.polygon(surf, BLACK, self.config["walls_pts"], WALL_WIDTH) 
         self.wall_mask = pygame.mask.from_surface(surf) 
-
+        # Đặt các coin tại đây để có thể định hướng di chuyển cho quá trình huấn luyện
         self.custom_coins = []
         if level == 0:
             self.custom_coins = [
@@ -806,6 +844,7 @@ class TrainVisualizer:
             ]
         elif level == 1:
             self.custom_coins = [
+                {"pos": (275, 350), "type": "RED"},
                 {"pos": (550, 350), "type": "YELLOW"},
                 {"pos": (825, 350), "type": "RED"}
             ]
@@ -830,8 +869,7 @@ class TrainVisualizer:
     def setup_generation(self):
         global GENES_PER_STEP
         
-        # Tăng DNA sau mỗi 10 thế hệ
-        if self.generation > 0 and self.generation % 10 == 0:
+        if self.generation > 0 and self.generation % GENERATION_INCEASE_DNA == 0:
             GENES_PER_STEP += DNA_INCREASE_RATE
             print(f"--- Gen {self.generation}: DNA increased to {GENES_PER_STEP} ---")
             
@@ -876,6 +914,8 @@ class TrainVisualizer:
             active_players = False
             self.angle += 0.025
             for en in self.enemies: en.update(self.angle)
+            normal_players = []
+            elite_players = []
 
             for i in range(POPULATION_SIZE):
                 genome = self.population[i]
@@ -910,10 +950,25 @@ class TrainVisualizer:
                                 genome.reached_finish = True
                                 genome.current_step = self.current_frame
                                 self.finished = True
+                if genome.is_dead:
+                    p_color = (100, 100, 100) 
+                elif genome.is_elite:
+                    p_color = (255, 215, 0)   
+                else:
+                    p_color = RED             
 
-                p_color = RED if not genome.is_dead else (100, 100, 100)
-                pygame.draw.rect(self.screen, p_color, player.rect)
-                pygame.draw.rect(self.screen, BLACK, player.rect, 1)
+                if genome.is_elite:
+                    elite_players.append((player.rect, p_color))
+                else:
+                    normal_players.append((player.rect, p_color))
+
+            for r, color in normal_players:
+                pygame.draw.rect(self.screen, color, r)
+                pygame.draw.rect(self.screen, BLACK, r, 1)
+
+            for r, color in elite_players:
+                pygame.draw.rect(self.screen, color, r)
+                pygame.draw.rect(self.screen, (50, 50, 0), r, 2)     
 
             for en in self.enemies: en.draw(self.screen) 
 
@@ -929,7 +984,7 @@ class TrainVisualizer:
                     best_genome = max(self.population, key=lambda g: g.fitness)
                     self.save_achievement(best_genome)
                     print(f"CONGRATULATIONS! Level {self.level} cleared. Training stopped.")
-                    running = False # Thoát vòng lặp chính
+                    running = False 
                 else:
                     self.setup_generation()
 
@@ -965,19 +1020,27 @@ class TrainVisualizer:
             fitness += (GENES_PER_STEP - genome.current_step) + 5000
 
         if genome.is_dead:
-            fitness *= 0.9 
+            fitness *= 0.8 
             
         return fitness
 
     def evolve(self):
         cnt = 0
-        # Đột biến nhẹ các bước cuối của cá thể chết để tìm hướng thoát
+        # Đột biến có tính kế thừa cho các cá thể chết [cite: 130]
         for genome in self.population:
             if genome.is_dead:
-                start_mutate = max(0, genome.current_step - 10)
+                # Xác định điểm bắt đầu đột biến (20 bước trước khi chết) [cite: 130]
+                start_mutate = max(1, genome.current_step - 10) 
+                
+                # Lấy gene làm mốc từ trước đoạn đột biến để đảm bảo tính liên tục 
+                last_gene = genome.genes[start_mutate - 1]
+                
                 for j in range(start_mutate, genome.current_step):
-                    angle = random.uniform(0, 2 * math.pi)
-                    genome.genes[j] = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
+                    # 10% cơ hội đổi hướng so với bước trước đó 
+                    if random.random() < 0.1:
+                        angle = random.uniform(0, 2 * math.pi)
+                        last_gene = (math.cos(angle) * PLAYER_SPEED, math.sin(angle) * PLAYER_SPEED)
+                    genome.genes[j] = last_gene
 
         for i in range(POPULATION_SIZE):
             self.population[i].fitness = self.calculate_fitness(self.population[i], self.players[i])
@@ -988,6 +1051,7 @@ class TrainVisualizer:
         # Elitism
         for i in range(ELITISM_COUNT):
             elite = self.population[i]
+            elite.is_elite = True # Đánh dấu là tinh anh
             while len(elite.genes) < GENES_PER_STEP:
                 last_gene = elite.genes[-1] if elite.genes else None
                 if last_gene is None or random.random() < 0.1:
@@ -999,6 +1063,7 @@ class TrainVisualizer:
         while len(new_pop) < POPULATION_SIZE:
             p1, p2 = random.choice(self.population[:10]), random.choice(self.population[:10])
             child = Genome(GENES_PER_STEP)
+            child.is_elite = False
             cp = random.randint(0, len(p1.genes))
             child_dna = p1.genes[:cp] + p2.genes[cp:]
             
@@ -1022,8 +1087,6 @@ class TrainVisualizer:
     def save_achievement(self, best_genome):
         file_path = "archivement.txt"
         achievements = {}
-
-        # 1. Đọc dữ liệu cũ nếu file tồn tại
         if os.path.exists(file_path):
             try:
                 with open(file_path, "r", encoding="utf-8") as f:
@@ -1031,17 +1094,15 @@ class TrainVisualizer:
             except:
                 achievements = {}
 
-        # 2. Chuẩn bị dữ liệu mới
         new_data = {
             "level": self.level,
             "generation": self.generation,
             "population_size": POPULATION_SIZE,
             "dna_length": len(best_genome.genes),
             "fitness": best_genome.fitness,
-            "dna": best_genome.genes # Lưu list các tuple (dx, dy)
+            "dna": best_genome.genes 
         }
 
-        # 3. Kiểm tra level đã tồn tại chưa
         lvl_key = str(self.level)
         if lvl_key in achievements:
             if best_genome.fitness > achievements[lvl_key]["fitness"]:
@@ -1053,13 +1114,12 @@ class TrainVisualizer:
             achievements[lvl_key] = new_data
             print(f"Saved new record for Level {self.level}")
 
-        # 4. Ghi lại vào file (dùng định dạng JSON để dễ đọc/ghi DNA)
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(achievements, f, indent=4)
 
 if __name__ == "__main__":
     # Bắt đầu huấn luyện (Thay đổi level tại đây)
-    trainer = TrainVisualizer(level=0)
+    trainer = TrainVisualizer(level=1)
     trainer.run()
 
 ----------------------------------------

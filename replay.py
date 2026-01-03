@@ -168,11 +168,11 @@ class ReplayVisualizer:
                     running = False
 
             pygame.display.flip()
-            self.clock.tick(120) # Chạy tốc độ cao cho đồng bộ với logic train 
+            self.clock.tick(60) # Chạy tốc độ cao cho đồng bộ với logic train 
 
         pygame.quit()
 
 if __name__ == "__main__":
     # Thay đổi level muốn xem lại tại đây
-    replay = ReplayVisualizer(level_to_replay=3)
+    replay = ReplayVisualizer(level_to_replay=1)
     replay.run()

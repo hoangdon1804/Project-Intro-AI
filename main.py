@@ -47,37 +47,32 @@ class Game:
         if dx != 0 or dy != 0: self.player.move(dx, dy, self.wall_mask)
 
         # Cập nhật enemy và check chết
-        self.angle += 0.03
+        self.angle += 0.025
         player_center = pygame.Vector2(self.player.rect.center)
         for en in self.enemies:
             en.update(self.angle)
             enemy_pos = pygame.Vector2(en.x, en.y)
             distance = player_center.distance_to(enemy_pos)
             
-            # Va chạm xảy ra khi khoảng cách nhỏ hơn (bán kính kẻ thù + nửa cạnh người chơi)
-            # Bán kính kẻ thù là ENEMY_RADIUS (10), nửa cạnh người chơi là PLAYER_SIZE/2 (15)
             if distance < (ENEMY_RADIUS + PLAYER_SIZE / 2):
                 self.deaths += 1
                 self.load_level()
                 return
-        # Check ăn coin
+            
         for c in self.coins[:]:
             coin_pos = pygame.Vector2(c.pos)
             distance = player_center.distance_to(coin_pos)
             
-            # Bán kính coin là 10, nửa cạnh người chơi là 15
             if distance < (10 + PLAYER_SIZE / 2):
                 self.coins.remove(c)
                 self.current_coins += 1
 
-        # Check checkpoint
         for cp in self.checkpoints:
             if cp.colliderect(self.player.rect):
                 new_cp = (cp.x + (cp.width-PLAYER_SIZE)//2, cp.y + (cp.height-PLAYER_SIZE)//2)
                 if self.checkpoint_pos != new_cp:
                     self.checkpoint_pos = new_cp
 
-        # Check về đích
         if self.finish_rect.colliderect(self.player.rect) and self.current_coins >= self.coins_req:
             self.lvl += 1
             self.checkpoint_pos = None
