@@ -168,7 +168,7 @@ class ReplayVisualizer:
                     running = False
 
             pygame.display.flip()
-            self.clock.tick(60) # Chạy tốc độ cao cho đồng bộ với logic train 
+            self.clock.tick(FPS) 
 
         pygame.quit()
 

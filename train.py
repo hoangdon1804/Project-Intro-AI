@@ -12,7 +12,7 @@ from level_manager import LevelManager
 POPULATION_SIZE = 1000  # Số cá thể trong 1 thế hệ
 GENES_PER_STEP = 200    # Độ dài DNA ban đầu
 MUTATION_RATE = 0.05    # Tỉ lệ đột biến
-ELITISM_COUNT = 10      # Số cá thể tinh anh giữ lại sau mỗi thế hệ
+ELITISM_COUNT = 50      # Số cá thể tinh anh giữ lại sau mỗi thế hệ
 DNA_INCREASE_RATE = 50  # Độ dài DNA được thêm vào
 GENERATION_INCEASE_DNA = 15 # Số thế hệ để được tăng độ dài DNA
 
@@ -206,7 +206,7 @@ class TrainVisualizer:
                 if event.type == pygame.QUIT: running = False
 
             pygame.display.flip()
-            self.clock.tick(60)
+            self.clock.tick(FPS)
         pygame.quit()
 
 
@@ -231,7 +231,7 @@ class TrainVisualizer:
             fitness += (1 / (dist + 1)) * 1000
         
         if genome.reached_finish:
-            fitness += (GENES_PER_STEP - genome.current_step) + 5000
+            fitness += (1/genome.current_step) + 5000
 
         if genome.is_dead:
             fitness *= 0.8 
@@ -240,10 +240,10 @@ class TrainVisualizer:
 
     def evolve(self):
         cnt = 0
-        # Đột biến có tính kế thừa cho các cá thể chết [cite: 130]
+        # Đột biến có tính kế thừa cho các cá thể chết 
         for genome in self.population:
             if genome.is_dead:
-                # Xác định điểm bắt đầu đột biến (20 bước trước khi chết) [cite: 130]
+                # Xác định điểm bắt đầu đột biến (20 bước trước khi chết) 
                 start_mutate = max(1, genome.current_step - 10) 
                 
                 # Lấy gene làm mốc từ trước đoạn đột biến để đảm bảo tính liên tục 
@@ -333,5 +333,5 @@ class TrainVisualizer:
 
 if __name__ == "__main__":
     # Bắt đầu huấn luyện (Thay đổi level tại đây)
-    trainer = TrainVisualizer(level=1)
+    trainer = TrainVisualizer(level=3)
     trainer.run()
