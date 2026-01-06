@@ -102,10 +102,4 @@ GENERATION_INCEASE_DNA = 15  # Sau 15 thế hệ thì tăng DNA
 
 Khi AI hoàn thành màn chơi, DNA tốt nhất sẽ được lưu vào archivement.txt
 
-Có thể dùng DNA này để tái hiện lại hành vi AI mà không cần huấn luyện lại
-
-Nếu chương trình chạy chậm:
-
-Giảm POPULATION_SIZE
-
-Hoặc tắt bớt các ứng dụng chạy nền
+Việc khởi tạo các thông  số hợp lý rất quan trọng, ví dụ : nếu như tạo chuỗi ADN ban đầu quá dài, thế hệ tăng độ dài ADN quá ngắn dẫn đến việc kẹt cục bộ ban đầu (các cá thể luôn chết).
