@@ -1,4 +1,4 @@
-# 🚀 AI Pathfinding Trainer – Genetic Algorithm
+# AI Pathfinding Trainer – Genetic Algorithm
 
 Dự án sử dụng **Giải thuật Di truyền (Genetic Algorithm)** để huấn luyện các cá thể AI tự học cách vượt qua các màn chơi phức tạp.  
 AI phải học cách **di chuyển**, **tránh né kẻ địch**, **thu thập vật phẩm (coins) theo đúng thứ tự** và **tìm đường về đích**.
@@ -9,26 +9,26 @@ AI phải học cách **di chuyển**, **tránh né kẻ địch**, **thu thập
 
 ---
 
-## ✨ Tính năng nổi bật
+## Tính năng nổi bật
 
-- 🧬 **Hệ thống DNA động**  
+- **Hệ thống DNA động**  
   Độ dài DNA tự động tăng dần theo số thế hệ (`DNA_INCREASE_RATE`), giúp AI học từ các bước ngắn đến lộ trình dài và phức tạp hơn.
 
-- 🪙 **Logic thu thập tuần tự**  
+- **Logic thu thập tuần tự**  
   AI không chỉ tìm đích mà phải học cách thu thập các đồng xu **theo đúng thứ tự** trước khi về đích.
 
-- 👑 **Cơ chế tinh anh (Elitism)**  
+- **Cơ chế tinh anh (Elitism)**  
   Giữ lại các cá thể xuất sắc nhất của mỗi thế hệ để đảm bảo quá trình tiến hóa không bị thụt lùi.
 
-- 🔄 **Đột biến có kế thừa**  
+- **Đột biến có kế thừa**  
   Khi cá thể va chạm, các gene trước thời điểm chết được giữ lại, chỉ đột biến các bước cuối → tối ưu hành vi tại các điểm “thắt nút”.
 
-- 🎮 **Trực quan hóa thời gian thực**  
+- **Trực quan hóa thời gian thực**  
   Hiển thị toàn bộ quá trình huấn luyện với màu sắc phân biệt giữa cá thể thường, tinh anh và cá thể đã chết.
 
 ---
 
-## 🛠️ Cấu trúc dự án
+## Cấu trúc dự án
 
 ├── train.py # Khởi tạo game cho người chơi
 
@@ -42,7 +42,7 @@ AI phải học cách **di chuyển**, **tránh né kẻ địch**, **thu thập
 
 └── archivement.txt # Lưu DNA cá thể xuất sắc nhất
 
-## 🧬 Cơ chế Giải thuật Di truyền
+## Cơ chế Giải thuật Di truyền
 
 ### 1️⃣ Khởi tạo
 - Tạo quần thể **1000 cá thể**
@@ -66,7 +66,7 @@ AI phải học cách **di chuyển**, **tránh né kẻ địch**, **thu thập
 
 ---
 
-## 🚀 Hướng dẫn cài đặt
+## Hướng dẫn cài đặt
 
 ### Yêu cầu
 - Python **3.8+**
